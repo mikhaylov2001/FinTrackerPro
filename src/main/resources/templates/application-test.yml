@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: FinTrackerPro-Test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  mvc:
+    throw-exception-if-no-handler-found: true
+
+  web:
+    resources:
+      add-mappings: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "test-google-client-id"
+            client-secret: "test-google-client-secret"
+            scope: openid,profile,email
+
+  flyway:
+    enabled: false  # Отключаем Flyway в тестах
+
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-must-be-very-long-at-least-256-bits
+  expiration: 3600000
+
+google:
+  client:
+    id: test-google-client-id
+    secret: test-google-client-secret
+
+logging:
+  level:
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    com.example.fintrackerpro: DEBUG
+    org.hibernate.SQL: DEBUG

@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrackerPro - Аутентификация</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --text-color: #333;
+            --border-color: #ddd;
+            --bg-light: #f5f5f5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 450px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #999;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            margin-bottom: -1px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.loading {
+            color: transparent;
+        }
+
+        .btn .spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn.loading .spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid var(--success-color);
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid var(--error-color);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .divider span {
+            padding: 0 12px;
+        }
+
+        .google-btn-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .debug-info {
+            background: var(--bg-light);
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+            font-family: monospace;
+            word-break: break-all;
+            display: none;
+        }
+
+        .debug-info.show {
+            display: block;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .tab-content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>💰 FinTrackerPro</h1>
+        <p>Управление личными финансами</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'register')">Регистрация</button>
+        <button class="tab-btn" onclick="switchTab(event, 'login')">Логин</button>
+    </div>
+
+    <!-- РЕГИСТРАЦИЯ -->
+    <div id="register" class="tab-content active">
+        <div class="message" id="registerMessage"></div>
+        <form onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="registerName">Имя пользователя</label>
+                <input type="text" id="registerName" placeholder="Dmitry" required>
+            </div>
+
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" placeholder="dmitry@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="registerPassword">Пароль</label>
+                <input type="password" id="registerPassword" placeholder="Минимум 6 символов" required minlength="6">
+            </div>
+
+            <div class="form-group">
+                <label for="registerChatId">Telegram Chat ID (опционально)</label>
+                <input type="number" id="registerChatId" placeholder="123456789" min="1">
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="registerBtn">
+                Зарегистрироваться
+                <span class="spinner"></span>
+            </button>
+        </form>
+
+        <div class="divider"><span>или</span></div>
+
+        <div class="google-btn-wrapper">
+            <div id="google_signin_register"></div>
+        </div>
+
+        <div class="debug-info" id="registerDebug"></div>
+    </div>
+
+    <!-- ЛОГИН -->
+    <div id="login" class="tab-content">
+        <div class="message" id="loginMessage"></div>
+        <form onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="loginUserName">Имя пользователя</label>
+                <input type="text" id="loginUserName" placeholder="dmitry" required>
+            </div>
+
+            <div class="form-group">
+                <label for="loginPassword">Пароль</label>
+                <input type="password" id="loginPassword" placeholder="Ваш пароль" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="loginBtn">
+                Войти
+                <span class="spinner"></span>
+            </button>
+        </form>
+
+        <div class="divider"><span>или</span></div>
+
+        <div class="google-btn-wrapper">
+            <div id="google_signin_login"></div>
+        </div>
+
+        <div class="debug-info" id="loginDebug"></div>
+    </div>
+</div>
+
+<script>
+    // ===== КОНФИГУРАЦИЯ =====
+    const CONFIG = {
+        API_URL: 'http://localhost:8082/api/auth',
+        GOOGLE_CLIENT_ID: '1096583300191-3n9tohlfv3r1fl8p2mu66foksp01qk76.apps.googleusercontent.com',
+        DEBUG_MODE: true
+    };
+
+    // ===== ЛОГИРОВАНИЕ =====
+    function log(message, data = null) {
+        if (CONFIG.DEBUG_MODE) {
+            console.log(`[FinTracker] ${message}`, data || '');
+        }
+    }
+
+    function logError(message, error = null) {
+        console.error(`[FinTracker ERROR] ${message}`, error || '');
+    }
+
+    // ===== ПЕРЕКЛЮЧЕНИЕ ТАБОВ =====
+    function switchTab(event, tab) {
+        event.preventDefault();
+        document.querySelectorAll('.tab-content').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.classList.remove('active');
+        });
+
+        document.getElementById(tab).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    function showMessage(elementId, message, type) {
+        const messageEl = document.getElementById(elementId);
+        messageEl.textContent = message;
+        messageEl.className = `message ${type} show`;
+
+        setTimeout(() => {
+            messageEl.classList.remove('show');
+        }, 5000);
+    }
+
+    function setButtonLoading(btnId, isLoading) {
+        const btn = document.getElementById(btnId);
+        if (isLoading) {
+            btn.classList.add('loading');
+            btn.disabled = true;
+        } else {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+
+    function saveAuthData(data) {
+        if (data.token && data.user) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userId', data.user.id);
+            localStorage.setItem('userName', data.user.userName);
+            localStorage.setItem('email', data.user.email);
+
+            log('Auth data saved to localStorage', {
+                userId: data.user.id,
+                userName: data.user.userName
+            });
+        }
+    }
+
+    function showDebugInfo(elementId, data) {
+        if (!CONFIG.DEBUG_MODE) return;
+
+        const debugEl = document.getElementById(elementId);
+        debugEl.textContent = JSON.stringify(data, null, 2);
+        debugEl.classList.add('show');
+    }
+
+    // ===== РЕГИСТРАЦИЯ =====
+    async function handleRegister(e) {
+        e.preventDefault();
+        log('Starting registration...');
+
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const password = document.getElementById('registerPassword').value;
+        const chatIdInput = document.getElementById('registerChatId').value.trim();
+
+        let chatId = null;
+        if (chatIdInput) {
+            chatId = parseInt(chatIdInput);
+            if (isNaN(chatId) || chatId <= 0) {
+                showMessage('registerMessage', '❌ Telegram Chat ID должен быть положительным числом', 'error');
+                return;
+            }
+        }
+
+        const payload = {
+            userName: name,
+            email: email,
+            password: password,
+            chatId: chatId
+        };
+
+        log('Registration payload', payload);
+        setButtonLoading('registerBtn', true);
+
+        try {
+            const response = await fetch(`${CONFIG.API_URL}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            log('Registration response status', response.status);
+
+            const data = await response.json();
+            log('Registration response data', data);
+
+            if (response.ok && data.token) {
+                showMessage('registerMessage', '✅ Успешно зарегистрирован!', 'success');
+                saveAuthData(data);
+                showDebugInfo('registerDebug', data);
+
+                document.getElementById('loginUserName').value = name;
+
+                setTimeout(() => {
+                    window.location.href = './dashboard.html';
+                }, 1500);
+            } else {
+                const errorMsg = data.message || data.error || 'Регистрация не удалась';
+                showMessage('registerMessage', `❌ ${errorMsg}`, 'error');
+                showDebugInfo('registerDebug', data);
+            }
+        } catch (error) {
+            logError('Registration failed', error);
+            showMessage('registerMessage', `❌ Ошибка сети: ${error.message}`, 'error');
+        } finally {
+            setButtonLoading('registerBtn', false);
+        }
+    }
+
+    // ===== ЛОГИН =====
+    async function handleLogin(e) {
+        e.preventDefault();
+        log('Starting login...');
+
+        const userName = document.getElementById('loginUserName').value.trim();
+        const password = document.getElementById('loginPassword').value;
+
+        const payload = {
+            userName: userName,
+            password: password
+        };
+
+        log('Login payload', payload);
+        setButtonLoading('loginBtn', true);
+
+        try {
+            const response = await fetch(`${CONFIG.API_URL}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            log('Login response status', response.status);
+
+            const data = await response.json();
+            log('Login response data', data);
+
+            if (response.ok && data.token) {
+                showMessage('loginMessage', '✅ Успешный вход!', 'success');
+                saveAuthData(data);
+                showDebugInfo('loginDebug', data);
+
+                setTimeout(() => {
+                    window.location.href = './dashboard.html';
+                }, 1500);
+            } else {
+                const errorMsg = data.message || data.error || 'Неверные учётные данные';
+                showMessage('loginMessage', `❌ ${errorMsg}`, 'error');
+                showDebugInfo('loginDebug', data);
+            }
+        } catch (error) {
+            logError('Login failed', error);
+            showMessage('loginMessage', `❌ Ошибка сети: ${error.message}`, 'error');
+        } finally {
+            setButtonLoading('loginBtn', false);
+        }
+    }
+
+    // ===== GOOGLE OAUTH =====
+    async function handleGoogleSignIn(response) {
+        log('Google Sign-In callback triggered');
+        log('Google credential received', response.credential ? 'Yes' : 'No');
+
+        const idToken = response.credential;
+        if (!idToken) {
+            logError('No ID token received from Google');
+            showMessage('registerMessage', '❌ Не получен токен от Google', 'error');
+            return;
+        }
+
+        try {
+            log('Sending Google token to backend...');
+
+            const res = await fetch(`${CONFIG.API_URL}/google`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ idToken: idToken })
+            });
+
+            log('Google OAuth backend response status', res.status);
+
+            const data = await res.json();
+            log('Google OAuth backend response data', data);
+
+            if (res.ok && data.token) {
+                showMessage('registerMessage', '✅ Вход через Google успешен!', 'success');
+                saveAuthData(data);
+                showDebugInfo('registerDebug', data);
+
+                setTimeout(() => {
+                    window.location.href = './dashboard.html';
+                }, 1500);
+            } else {
+                const errorMsg = data.message || data.error || 'Неизвестная ошибка';
+                showMessage('registerMessage', `❌ Google OAuth: ${errorMsg}`, 'error');
+                showDebugInfo('registerDebug', data);
+            }
+        } catch (error) {
+            logError('Google OAuth failed', error);
+            showMessage('registerMessage', `❌ Ошибка Google OAuth: ${error.message}`, 'error');
+        }
+    }
+
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    window.addEventListener('load', () => {
+        log('Page loaded, initializing...');
+        log('Current origin', window.location.origin);
+
+        const savedToken = localStorage.getItem('token');
+        const savedUserId = localStorage.getItem('userId');
+        if (savedToken) {
+            log('Found saved auth data', {
+                token: savedToken.substring(0, 20) + '...',
+                userId: savedUserId
+            });
+        }
+
+        if (typeof google !== 'undefined' && google.accounts) {
+            log('Initializing Google Sign-In', CONFIG.GOOGLE_CLIENT_ID);
+
+            try {
+                google.accounts.id.initialize({
+                    client_id: CONFIG.GOOGLE_CLIENT_ID,
+                    callback: handleGoogleSignIn,
+                    auto_select: false,
+                    cancel_on_tap_outside: true
+                });
+
+                log('Google Sign-In initialized successfully');
+
+                google.accounts.id.renderButton(
+                    document.getElementById('google_signin_register'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        width: 350,
+                        text: 'signup_with',
+                        locale: 'ru'
+                    }
+                );
+                log('Google Sign-In button (register) rendered');
+
+                google.accounts.id.renderButton(
+                    document.getElementById('google_signin_login'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        width: 350,
+                        text: 'signin_with',
+                        locale: 'ru'
+                    }
+                );
+                log('Google Sign-In button (login) rendered');
+
+            } catch (error) {
+                logError('Failed to initialize Google Sign-In', error);
+                showMessage('registerMessage',
+                    '⚠️ Google вход недоступен. Используйте обычную регистрацию.',
+                    'error'
+                );
+            }
+        } else {
+            logError('Google Sign-In library not loaded');
+            setTimeout(() => {
+                if (typeof google === 'undefined') {
+                    showMessage('registerMessage',
+                        '⚠️ Не удалось загрузить Google Sign-In',
+                        'error'
+                    );
+                }
+            }, 3000);
+        }
+    });
+</script>
+</body>
+</html>
