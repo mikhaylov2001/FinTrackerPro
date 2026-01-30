@@ -24,9 +24,9 @@ logs/
 *.db
 *.sqlite
 
-# Application config with secrets (НЕ загружайте пароли!)
+# Application config with secrets 
 application.yml
-application-prod.yml
+
 
 # Environment variables
 .env
