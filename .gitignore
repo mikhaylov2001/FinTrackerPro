@@ -25,7 +25,7 @@ logs/
 *.sqlite
 
 # Application config with secrets (НЕ загружайте пароли!)
-application-local.yml
+application.yml
 application-prod.yml
 
 # Environment variables
