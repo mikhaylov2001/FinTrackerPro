@@ -3,9 +3,9 @@ spring:
     name: FinTrackerPro
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/project
-    username: postgres
-    password: postgres
+    url: ${DB_URL:jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}}
+    username: ${DB_USERNAME:${PGUSER}}
+    password: ${DB_PASSWORD:${PGPASSWORD}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -37,8 +37,8 @@ spring:
       client:
         registration:
           google:
-            client-id: "1096583300191-3n9tohlfv3r1fl8p2mu66foksp01qk76.apps.googleusercontent.com"
-            client-secret: "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"
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,profile,email
 
   flyway:
@@ -48,10 +48,10 @@ spring:
     baseline-version: 0
 
 server:
-  port: 8082
+  port: ${PORT:8082}
 
 jwt:
-  secret: local_dev_key_not_for_production_12345678901234567890
+  secret: ${JWT_SECRET}
   expiration: 86400000
   refresh-expiration: 604800000
 
@@ -66,16 +66,36 @@ logging:
 
 telegram:
   bot:
-    token: 8301073072:AAHdNx1aDifMbwavnUGDq9ScsN54YuH3Ov4
+    token: ${TELEGRAM_BOT_TOKEN}
     username: fintracker_pro_bot
 
 # Swagger/OpenAPI Configuration
 springdoc:
   api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
     enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
     try-it-out-enabled: true
+    filter: false
+    display-request-duration: true
+    doc-expansion: none
+  show-actuator: true
+  paths-to-match: /api/**
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    defaults:
+      enabled: true
