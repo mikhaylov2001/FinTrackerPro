@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.service;
 
+import com.example.fintrackerpro.dto.IncomeResponse;
 import com.example.fintrackerpro.entity.income.Income;
 import com.example.fintrackerpro.entity.income.IncomeRequest;
 import com.example.fintrackerpro.entity.user.User;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,7 +27,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,18 +74,18 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Добавить доход - успешно")
     void addIncome_Success() {
-        // Given
         when(userService.getUserById(1L)).thenReturn(testUser);
         when(incomeRepository.save(any(Income.class))).thenReturn(testIncome);
 
-        // When
-        Income result = incomeService.addIncome(incomeRequest);
+        IncomeResponse result = incomeService.addIncome(incomeRequest);
 
-        // Then
         assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getUserId()).isEqualTo(1L);
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("50000.00"));
         assertThat(result.getSource()).isEqualTo("Зарплата");
-        assertThat(result.getUser()).isEqualTo(testUser);
+        assertThat(result.getCategory()).isEqualTo("Зарплата за март");
+        assertThat(result.getDate()).isEqualTo(LocalDate.of(2024, 3, 15));
 
         verify(userService).getUserById(1L);
         verify(incomeRepository).save(any(Income.class));
@@ -92,11 +94,9 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Добавить доход - пользователь не найден")
     void addIncome_UserNotFound_ThrowsException() {
-        // Given
         when(userService.getUserById(1L))
                 .thenThrow(new ResourceNotFoundException("User not found"));
 
-        // When & Then
         assertThatThrownBy(() -> incomeService.addIncome(incomeRequest))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("User not found");
@@ -108,15 +108,13 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Получить доход по ID - успешно")
     void getIncomeById_Success() {
-        // Given
         when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
 
-        // When
-        Income result = incomeService.getIncomeById(1L);
+        IncomeResponse result = incomeService.getIncomeById(1L);
 
-        // Then
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getUserId()).isEqualTo(1L);
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("50000.00"));
 
         verify(incomeRepository).findById(1L);
@@ -125,10 +123,8 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Получить доход по ID - не найден")
     void getIncomeById_NotFound_ThrowsException() {
-        // Given
         when(incomeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // When & Then
         assertThatThrownBy(() -> incomeService.getIncomeById(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Income not found");
@@ -139,33 +135,28 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Получить доходы пользователя - успешно (с Pageable)")
     void getIncomesByUser_WithPageable_Success() {
-        // Given
         Page<Income> incomePage = new PageImpl<>(Arrays.asList(testIncome));
         Pageable pageable = PageRequest.of(0, 10);
 
         when(userService.getUserById(1L)).thenReturn(testUser);
-        // ✅ ИСПРАВЛЕНО: правильное название метода
         when(incomeRepository.findByUserIdOrderByCreatedAtDesc(1L, pageable))
                 .thenReturn(incomePage);
 
-        // When
-        Page<Income> result = incomeService.getIncomesByUser(1L, pageable);
+        Page<IncomeResponse> result = incomeService.getIncomesByUser(1L, pageable);
 
-        // Then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0)).isEqualTo(testIncome);
+        IncomeResponse dto = result.getContent().get(0);
+        assertThat(dto.getId()).isEqualTo(1L);
+        assertThat(dto.getUserId()).isEqualTo(1L);
 
         verify(userService).getUserById(1L);
-        // ✅ ИСПРАВЛЕНО: проверка правильного метода
         verify(incomeRepository).findByUserIdOrderByCreatedAtDesc(1L, pageable);
     }
-
 
     @Test
     @DisplayName("Получить доходы за месяц - успешно")
     void getIncomesByUserAndMonth_Success() {
-        // Given
         Page<Income> incomePage = new PageImpl<>(Arrays.asList(testIncome));
         Pageable pageable = PageRequest.of(0, 10);
 
@@ -173,10 +164,8 @@ class IncomeServiceTest {
         when(incomeRepository.findByUserIdAndYearAndMonth(1L, 2024, 3, pageable))
                 .thenReturn(incomePage);
 
-        // When
-        Page<Income> result = incomeService.getIncomesByUserAndMonth(1L, 2024, 3, pageable);
+        Page<IncomeResponse> result = incomeService.getIncomesByUserAndMonth(1L, 2024, 3, pageable);
 
-        // Then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
 
@@ -187,7 +176,6 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Обновить доход - успешно")
     void updateIncome_Success() {
-        // Given
         IncomeRequest updateRequest = new IncomeRequest();
         updateRequest.setAmount(new BigDecimal("60000.00"));
         updateRequest.setSource("Премия");
@@ -195,20 +183,15 @@ class IncomeServiceTest {
         updateRequest.setDate(LocalDate.of(2024, 3, 20));
 
         when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
-        when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> {
-            Income saved = invocation.getArgument(0);
-            saved.setId(1L);
-            return saved;
-        });
+        when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        Income result = incomeService.updateIncome(1L, updateRequest);
+        IncomeResponse result = incomeService.updateIncome(1L, updateRequest);
 
-        // Then
         assertThat(result).isNotNull();
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("60000.00"));
         assertThat(result.getSource()).isEqualTo("Премия");
         assertThat(result.getCategory()).isEqualTo("Годовая премия");
+        assertThat(result.getDate()).isEqualTo(LocalDate.of(2024, 3, 20));
 
         verify(incomeRepository).findById(1L);
         verify(incomeRepository).save(any(Income.class));
@@ -217,20 +200,15 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Обновить доход - частичное обновление")
     void updateIncome_PartialUpdate_Success() {
-        // Given
         IncomeRequest partialRequest = new IncomeRequest();
         partialRequest.setAmount(new BigDecimal("55000.00"));
-        // Остальные поля null - не обновляются
 
         when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
         when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        Income result = incomeService.updateIncome(1L, partialRequest);
+        IncomeResponse result = incomeService.updateIncome(1L, partialRequest);
 
-        // Then
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("55000.00"));
-        // Старые значения сохранились
         assertThat(result.getSource()).isEqualTo("Зарплата");
         assertThat(result.getCategory()).isEqualTo("Зарплата за март");
 
@@ -240,14 +218,11 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Удалить доход - успешно")
     void deleteIncome_Success() {
-        // Given
         when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
         doNothing().when(incomeRepository).delete(any(Income.class));
 
-        // When
         incomeService.deleteIncome(1L);
 
-        // Then
         verify(incomeRepository).findById(1L);
         verify(incomeRepository).delete(testIncome);
     }
@@ -255,10 +230,8 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Удалить доход - не найден")
     void deleteIncome_NotFound_ThrowsException() {
-        // Given
         when(incomeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // When & Then
         assertThatThrownBy(() -> incomeService.deleteIncome(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Income not found");
@@ -268,20 +241,22 @@ class IncomeServiceTest {
     }
 
     @Test
-    @DisplayName("Добавить доход - проверка преобразования даты")
+    @DisplayName("Добавить доход - проверка преобразования даты (пишем в БД полночь)")
     void addIncome_DateConversion_Success() {
-        // Given
         when(userService.getUserById(1L)).thenReturn(testUser);
-        when(incomeRepository.save(any(Income.class)))
+
+        ArgumentCaptor<Income> incomeCaptor = ArgumentCaptor.forClass(Income.class);
+        when(incomeRepository.save(incomeCaptor.capture()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        // When
-        Income result = incomeService.addIncome(incomeRequest);
+        IncomeResponse result = incomeService.addIncome(incomeRequest);
 
-        // Then
-        assertThat(result.getDate()).isNotNull();
-        assertThat(result.getDate().toLocalDate()).isEqualTo(LocalDate.of(2024, 3, 15));
-        assertThat(result.getDate().toLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
+        Income savedEntity = incomeCaptor.getValue();
+        assertThat(savedEntity.getDate()).isNotNull();
+        assertThat(savedEntity.getDate().toLocalDate()).isEqualTo(LocalDate.of(2024, 3, 15));
+        assertThat(savedEntity.getDate().toLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
+
+        assertThat(result.getDate()).isEqualTo(LocalDate.of(2024, 3, 15));
 
         verify(incomeRepository).save(any(Income.class));
     }
