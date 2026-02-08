@@ -46,7 +46,8 @@ public class SecurityConfig {
                 "http://127.0.0.1:8082",
                 "http://localhost:3000",
                 "http://localhost:8080",
-                "https://fintracker-frontend-seven.vercel.app"
+                "https://fintracker-frontend-seven.vercel.app",
+                "https://fintracker-frontend-m0ae9vtuc-dmitrys-projects-4df4d08c.vercel.app"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(Arrays.asList("*"));
