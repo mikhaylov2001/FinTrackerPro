@@ -73,10 +73,10 @@ telegram:
 # Swagger/OpenAPI Configuration
 springdoc:
   api-docs:
-    enabled: true
+    enabled: false
     path: /v3/api-docs
   swagger-ui:
-    enabled: true
+    enabled: false
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
@@ -92,7 +92,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env
+        include: health,info
       base-path: /actuator
   endpoint:
     health:
