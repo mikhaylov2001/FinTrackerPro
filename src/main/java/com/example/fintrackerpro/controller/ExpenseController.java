@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.controller;
 
+import com.example.fintrackerpro.dto.ExpenseResponse;
 import com.example.fintrackerpro.entity.expense.Expense;
 import com.example.fintrackerpro.entity.expense.ExpenseRequest;
 import com.example.fintrackerpro.service.ExpenseService;
@@ -41,7 +42,7 @@ public class ExpenseController {
     })
 
     @PostMapping
-    public ResponseEntity<Expense> createExpense(@Valid @RequestBody ExpenseRequest request) {
+    public ResponseEntity<ExpenseResponse> createExpense(@Valid @RequestBody ExpenseRequest request) {
         log.info("📥 POST /api/expenses - Create expense for user {}", request.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.addExpense(request));
     }
@@ -58,7 +59,7 @@ public class ExpenseController {
 
 
     @GetMapping("/{expenseId}")
-    public ResponseEntity<Expense> getExpense(@PathVariable Long expenseId) {
+    public ResponseEntity<ExpenseResponse> getExpense(@PathVariable Long expenseId) {
         log.info("📤 GET /api/expenses/{}", expenseId);
         return ResponseEntity.ok(expenseService.getExpenseById(expenseId));
     }
@@ -77,14 +78,14 @@ public class ExpenseController {
     })
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Page<Expense>> getUserExpenses(
+    public ResponseEntity<Page<ExpenseResponse>> getUserExpenses(
         @PathVariable Long userId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         log.info("📤 GET /api/expenses/user/{}", userId);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Expense> expensesByUser = expenseService.getExpensesByUser(userId, pageable);
+        Page<ExpenseResponse> expensesByUser = expenseService.getExpensesByUser(userId, pageable);
         return ResponseEntity.ok(expensesByUser);
     }
     @Operation(
@@ -98,7 +99,7 @@ public class ExpenseController {
 
 
     @GetMapping("/user/{userId}/month/{year}/{month}")
-    public ResponseEntity<Page<Expense>> getUserExpensesByMonth(
+    public ResponseEntity<Page<ExpenseResponse>> getUserExpensesByMonth(
         @PathVariable Long userId,
         @PathVariable int year,
         @PathVariable int month,
@@ -107,7 +108,7 @@ public class ExpenseController {
     ) {
         log.info("📤 GET /api/expenses/user/{}/month/{}/{}", userId, year, month);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Expense> expensesByUserAndMonth = expenseService.getExpensesByUserAndMonth(userId, year, month, pageable);
+        Page<ExpenseResponse> expensesByUserAndMonth = expenseService.getExpensesByUserAndMonth(userId, year, month, pageable);
         return ResponseEntity.ok(expensesByUserAndMonth);
     }
     @Operation(
@@ -123,12 +124,12 @@ public class ExpenseController {
 
 
     @PutMapping("/{expenseId}")
-    public ResponseEntity<Expense> updateExpense(
+    public ResponseEntity<ExpenseResponse> updateExpense(
         @PathVariable Long expenseId,
         @Valid @RequestBody ExpenseRequest request
     ) {
         log.info("🔄 PUT /api/expenses/{}", expenseId);
-        Expense body = expenseService.updateExpense(expenseId, request);
+        ExpenseResponse body = expenseService.updateExpense(expenseId, request);
         return ResponseEntity.ok(body);
     }
     @Operation(

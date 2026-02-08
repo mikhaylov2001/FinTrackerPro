@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.controller;
 
+import com.example.fintrackerpro.dto.IncomeResponse;
 import com.example.fintrackerpro.entity.income.Income;
 import com.example.fintrackerpro.entity.income.IncomeRequest;
 import com.example.fintrackerpro.service.IncomeService;
@@ -36,9 +37,9 @@ public class IncomeController {
     })
 
     @PostMapping
-    public ResponseEntity<Income> createIncome(@Valid @RequestBody IncomeRequest request) {
+    public ResponseEntity<IncomeResponse> createIncome(@Valid @RequestBody IncomeRequest request) {
         log.info("📥 POST /api/incomes - Create income for user {}", request.getUserId());
-        Income body = incomeService.addIncome(request);
+        IncomeResponse body = incomeService.addIncome(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
@@ -50,9 +51,9 @@ public class IncomeController {
     })
 
     @GetMapping("/{incomeId}")
-    public ResponseEntity<Income> getIncome(@PathVariable Long incomeId) {
+    public ResponseEntity<IncomeResponse> getIncome(@PathVariable Long incomeId) {
         log.info("📤 GET /api/incomes/{}", incomeId);
-        Income incomeById = incomeService.getIncomeById(incomeId);
+        IncomeResponse incomeById = incomeService.getIncomeById(incomeId);
         return ResponseEntity.ok(incomeById);
     }
     @Operation(
@@ -66,14 +67,14 @@ public class IncomeController {
 
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Page<Income>> getUserIncomes(
+    public ResponseEntity<Page<IncomeResponse>> getUserIncomes(
         @PathVariable Long userId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         log.info("📤 GET /api/incomes/user/{}", userId);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Income> incomesByUser = incomeService.getIncomesByUser(userId, pageable);
+        Page<IncomeResponse> incomesByUser = incomeService.getIncomesByUser(userId, pageable);
         return ResponseEntity.ok(incomesByUser);
     }
 
@@ -81,7 +82,7 @@ public class IncomeController {
 
     @Operation(summary = "Получение доходов по месяцам")
     @GetMapping("/user/{userId}/month/{year}/{month}")
-    public ResponseEntity<Page<Income>> getUserIncomesByMonth(
+    public ResponseEntity<Page<IncomeResponse>> getUserIncomesByMonth(
         @PathVariable Long userId,
         @PathVariable int year,
         @PathVariable int month,
@@ -90,17 +91,17 @@ public class IncomeController {
     ) {
         log.info("📤 GET /api/incomes/user/{}/month/{}/{}", userId, year, month);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Income> incomesByUserAndMonth = incomeService.getIncomesByUserAndMonth(userId, year, month, pageable);
+        Page<IncomeResponse> incomesByUserAndMonth = incomeService.getIncomesByUserAndMonth(userId, year, month, pageable);
         return ResponseEntity.ok(incomesByUserAndMonth);
     }
     @Operation(summary = "Обновить доход")
     @PutMapping("/{incomeId}")
-    public ResponseEntity<Income> updateIncome(
+    public ResponseEntity<IncomeResponse> updateIncome(
         @PathVariable Long incomeId,
         @Valid @RequestBody IncomeRequest request
     ) {
         log.info("🔄 PUT /api/incomes/{}", incomeId);
-        Income body = incomeService.updateIncome(incomeId, request);
+        IncomeResponse body = incomeService.updateIncome(incomeId, request);
         return ResponseEntity.ok(body);
     }
     @Operation(summary = "Удалить доход")

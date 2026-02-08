@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.service;
 
+import com.example.fintrackerpro.dto.ExpenseResponse;
 import com.example.fintrackerpro.entity.expense.Expense;
 import com.example.fintrackerpro.entity.expense.ExpenseRequest;
 import com.example.fintrackerpro.entity.user.User;
@@ -10,17 +11,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalTime;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final UserService userService;
 
-    public Expense addExpense(ExpenseRequest request) {
+    public ExpenseResponse addExpense(ExpenseRequest request) {
         User user = userService.getUserById(request.getUserId());
 
         Expense expense = Expense.builder()
@@ -34,30 +38,31 @@ public class ExpenseService {
         Expense saved = expenseRepository.save(expense);
         log.info("✅ Expense created: id={}, userId={}, amount={}, category={}",
                 saved.getId(), user.getId(), saved.getAmount(), saved.getCategory());
-        return saved;
+        return  ExpenseResponse.from(saved);
     }
-
-    public Expense getExpenseById(Long expenseId) {
-        return expenseRepository.findById(expenseId)
-                .orElseThrow(() -> {
-                    log.error("❌ Expense not found with id={}", expenseId);
-                    return new ResourceNotFoundException("Expense not found with id: " + expenseId);
-                });
+    @Transactional(readOnly = true)
+    public ExpenseResponse getExpenseById(Long expenseId) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
+        return ExpenseResponse.from(expense);
     }
-
-    public Page<Expense> getExpensesByUser(Long userId, Pageable pageable) {
+@Transactional(readOnly = true)
+    public Page<ExpenseResponse> getExpensesByUser(Long userId, Pageable pageable) {
         userService.getUserById(userId);
-        return expenseRepository.findByUserId(userId, pageable);
+        return expenseRepository.findByUserId(userId, pageable).map(ExpenseResponse::from);
     }
 
-    public Page<Expense> getExpensesByUserAndMonth(Long userId, int year, int month, Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<ExpenseResponse> getExpensesByUserAndMonth(Long userId, int year, int month, Pageable pageable) {
         log.info("Getting expenses for user {} {}/{}", userId, year, month);
         userService.getUserById(userId);
-        return expenseRepository.findByUserIdAndYearAndMonth(userId, year, month, pageable);
+        return expenseRepository.findByUserIdAndYearAndMonth(userId, year, month, pageable).map(ExpenseResponse::from);
     }
 
-    public Expense updateExpense(Long expenseId, ExpenseRequest request) {
-        Expense expense = getExpenseById(expenseId);
+    public ExpenseResponse updateExpense(Long expenseId, ExpenseRequest request) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
+
 
         if (request.getAmount() != null) {
             expense.setAmount(request.getAmount());
@@ -74,11 +79,11 @@ public class ExpenseService {
 
         Expense updated = expenseRepository.save(expense);
         log.info("✅ Expense updated: id={}, amount={}", expenseId, updated.getAmount());
-        return updated;
+        return ExpenseResponse.from(updated);
     }
 
     public void deleteExpense(Long expenseId) {
-        Expense expense = getExpenseById(expenseId);
+        Expense expense = expenseRepository.findById(expenseId).orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
         expenseRepository.delete(expense);
         log.info("✅ Expense deleted: id={}", expenseId);
     }

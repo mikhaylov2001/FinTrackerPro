@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.service;
 
+import com.example.fintrackerpro.dto.IncomeResponse;
 import com.example.fintrackerpro.entity.income.Income;
 import com.example.fintrackerpro.entity.income.IncomeRequest;
 import com.example.fintrackerpro.entity.user.User;
@@ -10,17 +11,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalTime;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class IncomeService {
 
     private final IncomeRepository incomeRepository;
     private final UserService userService;
 
-    public Income addIncome(IncomeRequest request) {
+    public IncomeResponse addIncome(IncomeRequest request) {
         User user = userService.getUserById(request.getUserId());
 
         Income income = Income.builder()
@@ -34,30 +38,34 @@ public class IncomeService {
         Income saved = incomeRepository.save(income);
         log.info("✅ Income created: id={}, userId={}, amount={}, category={}",
                 saved.getId(), user.getId(), saved.getAmount(), saved.getCategory());
-        return saved;
+        return IncomeResponse.from(saved);
     }
 
-    public Income getIncomeById(Long incomeId) {
-        return incomeRepository.findById(incomeId)
+    @Transactional(readOnly = true)
+    public IncomeResponse getIncomeById(Long incomeId) {
+        Income income = incomeRepository.findById(incomeId)
                 .orElseThrow(() -> {
                     log.error("❌ Income not found with id={}", incomeId);
                     return new ResourceNotFoundException("Income not found with id: " + incomeId);
                 });
-    }
 
-    public Page<Income> getIncomesByUser(Long userId, Pageable pageable) {
+        return IncomeResponse.from(income);
+    }
+@Transactional(readOnly = true)
+    public Page<IncomeResponse> getIncomesByUser(Long userId, Pageable pageable) {
         userService.getUserById(userId);
-        return incomeRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        return incomeRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(IncomeResponse::from);
     }
-
-    public Page<Income> getIncomesByUserAndMonth(Long userId, int year, int month, Pageable pageable) {
+@Transactional(readOnly = true)
+    public Page<IncomeResponse> getIncomesByUserAndMonth(Long userId, int year, int month, Pageable pageable) {
         log.info("Getting incomes for user {} {}/{}", userId, year, month);
         userService.getUserById(userId);
-        return incomeRepository.findByUserIdAndYearAndMonth(userId, year, month, pageable);
+        return incomeRepository.findByUserIdAndYearAndMonth(userId, year, month, pageable).map(IncomeResponse::from);
     }
 
-    public Income updateIncome(Long incomeId, IncomeRequest request) {
-        Income income = getIncomeById(incomeId);
+    public IncomeResponse updateIncome(Long incomeId, IncomeRequest request) {
+        Income income = incomeRepository.findById(incomeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Income not found with id: " + incomeId));
 
         if (request.getAmount() != null) {
             income.setAmount(request.getAmount());
@@ -74,11 +82,12 @@ public class IncomeService {
 
         Income updated = incomeRepository.save(income);
         log.info("✅ Income updated: id={}, amount={}", incomeId, updated.getAmount());
-        return updated;
+        return IncomeResponse.from(updated);
     }
 
     public void deleteIncome(Long incomeId) {
-        Income income = getIncomeById(incomeId);
+        Income income = incomeRepository.findById(incomeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Income not found with id: " + incomeId));
         incomeRepository.delete(income);
         log.info("✅ Income deleted: id={}", incomeId);
     }
