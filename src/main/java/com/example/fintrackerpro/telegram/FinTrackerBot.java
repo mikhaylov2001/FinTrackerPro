@@ -14,6 +14,7 @@ import com.example.fintrackerpro.telegram.service.WelcomeService;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
@@ -36,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "telegram.bot.enabled", havingValue = "true")
 public class FinTrackerBot extends TelegramLongPollingBot {
 
     private final String botUsername;

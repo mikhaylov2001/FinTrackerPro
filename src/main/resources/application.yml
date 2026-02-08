@@ -66,6 +66,7 @@ logging:
 
 telegram:
   bot:
+    enabled: false
     token: ${TELEGRAM_BOT_TOKEN}
     username: fintracker_pro_bot
 
