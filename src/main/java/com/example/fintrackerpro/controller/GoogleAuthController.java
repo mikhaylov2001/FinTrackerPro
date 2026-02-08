@@ -4,6 +4,7 @@ import com.example.fintrackerpro.dto.AuthResponse;
 import com.example.fintrackerpro.dto.GoogleTokenRequest;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserDto;
+import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.repository.UserRepository;
 import com.example.fintrackerpro.security.JwtUtil;
 import com.example.fintrackerpro.service.UserService;
@@ -18,7 +19,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -38,9 +38,7 @@ public class GoogleAuthController {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
 
-    @Value("${google.client-id}")
-    private static String googleClientId;
-
+    private static final String GOOGLE_CLIENT_ID = "1096583300191-3n9tohlfv3r1fl8p2mu66foksp01qk76.apps.googleusercontent.com";
     @Operation(
             summary = "Вход через Google",
             description = "Аутентифицирует пользователя через Google OAuth 2.0. " +
@@ -132,7 +130,7 @@ public class GoogleAuthController {
                 new NetHttpTransport(),
                 new GsonFactory()
         )
-                .setAudience(Collections.singletonList(googleClientId))
+                .setAudience(Collections.singletonList(GOOGLE_CLIENT_ID))
                 .build();
 
         GoogleIdToken token = verifier.verify(idToken);
