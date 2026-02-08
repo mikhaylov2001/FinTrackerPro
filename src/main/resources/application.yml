@@ -3,9 +3,9 @@ spring:
     name: FinTrackerPro
   
   datasource:
-    url: ${DB_URL:jdbc:postgresql://${PGHOST}:${PGPORT}/${DATABASE_URL}}
-    username: ${DB_USERNAME:${PGUSER}}
-    password: ${DB_PASSWORD:${PGPASSWORD}}
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
