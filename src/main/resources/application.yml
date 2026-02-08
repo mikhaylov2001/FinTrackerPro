@@ -1,7 +1,10 @@
 spring:
+  profiles:
+    default: dev
+
   application:
     name: FinTrackerPro
-  
+
   datasource:
     url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}?sslmode=require
     username: ${PGUSER}
@@ -11,7 +14,7 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 30000
-  
+
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -24,14 +27,14 @@ spring:
           batch_size: 20
         order_inserts: true
         order_updates: true
-  
+
   mvc:
     throw-exception-if-no-handler-found: false
-  
+
   web:
     resources:
       add-mappings: true
-  
+
   security:
     oauth2:
       client:
@@ -48,21 +51,12 @@ spring:
     baseline-version: 0
 
 server:
-  port: ${PORT:8082}
+  port: ${PORT:8080}
 
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
   refresh-expiration: 604800000
-
-logging:
-  level:
-    root: INFO
-    com.example.fintrackerpro: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 telegram:
   bot:
@@ -70,24 +64,6 @@ telegram:
     token: ${TELEGRAM_BOT_TOKEN}
     username: fintracker_pro_bot
 
-# Swagger/OpenAPI Configuration
-springdoc:
-  api-docs:
-    enabled: false
-    path: /v3/api-docs
-  swagger-ui:
-    enabled: false
-    path: /swagger-ui.html
-    operations-sorter: method
-    tags-sorter: alpha
-    try-it-out-enabled: true
-    filter: false
-    display-request-duration: true
-    doc-expansion: none
-  show-actuator: true
-  paths-to-match: /api/**
-
-# Actuator endpoints
 management:
   endpoints:
     web:
@@ -97,6 +73,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-  health:
-    defaults:
-      enabled: true
