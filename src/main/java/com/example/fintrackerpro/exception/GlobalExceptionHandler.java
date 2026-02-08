@@ -98,26 +98,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(
-            Exception ex,
-            WebRequest request
-    ) {
-        log.error("❌ Unexpected error", ex);
 
-        ErrorResponse error = ErrorResponse.builder()
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("Internal server error: " + ex.getMessage())
-                .timestamp(LocalDateTime.now())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
 
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    @ExceptionHandler(NoResourceFoundException.class)
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResourceFound(
-            NoResourceFoundException ex,
+            org.springframework.web.servlet.resource.NoResourceFoundException ex,
             HttpServletRequest request
     ) {
         ErrorResponse error = ErrorResponse.builder()
@@ -129,6 +114,31 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+
+        // страховка от 404 -> 500 из-за статики
+        if (ex instanceof org.springframework.web.servlet.resource.NoResourceFoundException nrf) {
+            ErrorResponse error = ErrorResponse.builder()
+                    .status(nrf.getStatusCode().value())
+                    .message("Not found: " + nrf.getResourcePath())
+                    .timestamp(LocalDateTime.now())
+                    .path(request.getDescription(false).replace("uri=", ""))
+                    .build();
+            return ResponseEntity.status(nrf.getStatusCode()).body(error);
+        }
+
+        log.error("❌ Unexpected error", ex);
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("Internal server error: " + ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
 
 
 }
