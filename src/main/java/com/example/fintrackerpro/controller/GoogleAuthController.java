@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -30,7 +31,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Google Authentication", description = "API для аутентификации через Google OAuth 2.0")
 public class GoogleAuthController {
@@ -38,7 +38,19 @@ public class GoogleAuthController {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
 
-    private static final String GOOGLE_CLIENT_ID = "1096583300191-3n9tohlfv3r1fl8p2mu66foksp01qk76.apps.googleusercontent.com";
+    private final String googleClientId;
+
+    public GoogleAuthController(
+            UserService userService,
+            JwtUtil jwtUtil,
+            UserRepository userRepository,
+            @Value("${google.client-id}") String googleClientId
+    ) {
+        this.userService = userService;
+        this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
+        this.googleClientId = googleClientId;
+    }
     @Operation(
             summary = "Вход через Google",
             description = "Аутентифицирует пользователя через Google OAuth 2.0. " +
@@ -130,7 +142,7 @@ public class GoogleAuthController {
                 new NetHttpTransport(),
                 new GsonFactory()
         )
-                .setAudience(Collections.singletonList(GOOGLE_CLIENT_ID))
+                .setAudience(Collections.singletonList(googleClientId))
                 .build();
 
         GoogleIdToken token = verifier.verify(idToken);
