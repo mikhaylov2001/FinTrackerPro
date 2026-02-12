@@ -30,22 +30,14 @@ spring:
         order_inserts: true
         order_updates: true
 
-  mvc:
-    throw-exception-if-no-handler-found: false
-
-  web:
-    resources:
-      add-mappings: true
-
   security:
     oauth2:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
             scope: openid,profile,email
-
 
   flyway:
     enabled: true
@@ -56,14 +48,12 @@ spring:
 server:
   port: ${PORT:8082}
 
-
 jwt:
-  secret-base64: ${JWT_SECRET_BASE64}
+  secret-base64: ${JWT_SECRET_BASE64:}
   access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
   refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   issuer: ${JWT_ISSUER:fintracker}
   audience: ${JWT_AUDIENCE:fintracker-frontend}
-
 
 management:
   endpoints:
