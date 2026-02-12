@@ -21,8 +21,7 @@ import java.time.LocalDateTime;
 
 public class IncomeRequest {
 
-    @NotNull(message = "User ID is required")
-    private Long userId;
+
     @Schema(
             description = "Сумма дохода",
             example = "50000.00",
@@ -54,3 +53,4 @@ public class IncomeRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate date;
 }
+

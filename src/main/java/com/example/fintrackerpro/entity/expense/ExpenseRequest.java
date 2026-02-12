@@ -20,8 +20,6 @@ import java.time.LocalDateTime;
 
 public class ExpenseRequest {
 
-    @NotNull(message = "User ID is required")
-    private Long userId;
     @Schema(
             description = "Сумма расхода",
             example = "1500.50",

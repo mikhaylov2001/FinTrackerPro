@@ -14,11 +14,10 @@ import java.util.Optional;
 @Repository
 public interface IncomeRepository extends JpaRepository<Income, Long> {
 
-    Page<Income> findByUserId(Long userId, Pageable pageable);
+    Optional<Income> findByIdAndUserId(Long id, Long userId);
 
     Page<Income> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
-    List<Income> findByUserId(Long userId);
 
     Optional<Income> findById(Long id);
 
@@ -45,4 +44,17 @@ public interface IncomeRepository extends JpaRepository<Income, Long> {
             @Param("month") int month,
             Pageable pageable
     );
+
+    @Query(value = """
+    SELECT DISTINCT 
+        EXTRACT(YEAR FROM date) as year,
+        EXTRACT(MONTH FROM date) as month
+    FROM incomes
+    WHERE user_id = :userId
+    ORDER BY year DESC, month DESC
+""", nativeQuery = true)
+    List<Object[]> findUsedMonthsByUser(@Param("userId") Long userId);
+
+
+
 }

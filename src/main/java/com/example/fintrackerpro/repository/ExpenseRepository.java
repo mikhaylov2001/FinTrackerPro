@@ -43,5 +43,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             @Param("month") int month,
             Pageable pageable
     );
+
+    @Query(value = """
+    SELECT DISTINCT 
+        EXTRACT(YEAR FROM date) as year,
+        EXTRACT(MONTH FROM date) as month
+    FROM expenses
+    WHERE user_id = :userId
+    ORDER BY year DESC, month DESC
+""", nativeQuery = true)
+    List<Object[]> findUsedMonthsByUser(@Param("userId") Long userId);
+
+    Optional<Expense> findByIdAndUserId(Long id, Long userId);
 }
 

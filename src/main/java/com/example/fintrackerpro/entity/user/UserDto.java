@@ -13,4 +13,6 @@ public class UserDto {
     @JsonProperty("userName")  // ✅ Явно указываем имя в JSON
     private String userName;
     private String email;
+
 }
+

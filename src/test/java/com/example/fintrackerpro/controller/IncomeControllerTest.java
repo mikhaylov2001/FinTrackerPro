@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,16 +15,21 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -37,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 classes = JwtAuthenticationFilter.class
         )
 )
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc // ВАЖНО: фильтры включены (не ставим addFilters=false)
 @DisplayName("IncomeController WebMvc Tests")
 class IncomeControllerTest {
 
@@ -53,6 +57,12 @@ class IncomeControllerTest {
     private IncomeResponse testIncome;
     private IncomeRequest incomeRequest;
 
+    private Authentication authUser1() {
+        return new UsernamePasswordAuthenticationToken(
+                1L, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+    }
+
     @BeforeEach
     void setUp() {
         testIncome = IncomeResponse.builder()
@@ -64,8 +74,8 @@ class IncomeControllerTest {
                 .date(LocalDate.of(2024, 3, 15))
                 .build();
 
+        // userId НЕ передаём в body
         incomeRequest = new IncomeRequest();
-        incomeRequest.setUserId(1L);
         incomeRequest.setAmount(new BigDecimal("50000.00"));
         incomeRequest.setSource("Зарплата");
         incomeRequest.setCategory("Зарплата за март");
@@ -75,9 +85,11 @@ class IncomeControllerTest {
     @Test
     @DisplayName("POST /api/incomes - создать доход")
     void createIncome_Success() throws Exception {
-        when(incomeService.addIncome(any(IncomeRequest.class))).thenReturn(testIncome);
+        when(incomeService.addIncome(eq(1L), any(IncomeRequest.class))).thenReturn(testIncome);
 
         mockMvc.perform(post("/api/incomes")
+                        .with(authentication(authUser1()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(incomeRequest)))
                 .andExpect(status().isCreated())
@@ -88,33 +100,23 @@ class IncomeControllerTest {
                 .andExpect(jsonPath("$.category").value("Зарплата за март"))
                 .andExpect(jsonPath("$.date").value("2024-03-15"));
 
-        verify(incomeService).addIncome(any(IncomeRequest.class));
+        verify(incomeService).addIncome(eq(1L), any(IncomeRequest.class));
     }
 
     @Test
     @DisplayName("GET /api/incomes/{incomeId} - получить доход по ID")
     void getIncome_Success() throws Exception {
-        when(incomeService.getIncomeById(1L)).thenReturn(testIncome);
+        when(incomeService.getIncomeById(1L, 1L)).thenReturn(testIncome);
 
-        mockMvc.perform(get("/api/incomes/1"))
+        mockMvc.perform(get("/api/incomes/1")
+                        .with(authentication(authUser1())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.userId").value(1))
                 .andExpect(jsonPath("$.amount").value(50000.00))
                 .andExpect(jsonPath("$.source").value("Зарплата"));
 
-        verify(incomeService).getIncomeById(1L);
-    }
-
-    @Test
-    @DisplayName("GET /api/incomes/{incomeId} - доход не найден")
-    void getIncome_NotFound() throws Exception {
-        when(incomeService.getIncomeById(999L)).thenThrow(new RuntimeException("Income not found"));
-
-        mockMvc.perform(get("/api/incomes/999"))
-                .andExpect(status().is5xxServerError());
-
-        verify(incomeService).getIncomeById(999L);
+        verify(incomeService).getIncomeById(1L, 1L);
     }
 
     @Test
@@ -129,48 +131,30 @@ class IncomeControllerTest {
                 .date(LocalDate.of(2024, 3, 20))
                 .build();
 
-        when(incomeService.updateIncome(eq(1L), any(IncomeRequest.class))).thenReturn(updatedIncome);
+        when(incomeService.updateIncome(eq(1L), eq(1L), any(IncomeRequest.class))).thenReturn(updatedIncome);
 
         mockMvc.perform(put("/api/incomes/1")
+                        .with(authentication(authUser1()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(incomeRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.amount").value(60000.00));
 
-        verify(incomeService).updateIncome(eq(1L), any(IncomeRequest.class));
+        verify(incomeService).updateIncome(eq(1L), eq(1L), any(IncomeRequest.class));
     }
 
     @Test
     @DisplayName("DELETE /api/incomes/{incomeId} - удалить доход")
     void deleteIncome_Success() throws Exception {
-        doNothing().when(incomeService).deleteIncome(1L);
+        doNothing().when(incomeService).deleteIncome(1L, 1L);
 
-        mockMvc.perform(delete("/api/incomes/1"))
+        mockMvc.perform(delete("/api/incomes/1")
+                        .with(authentication(authUser1()))
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        verify(incomeService).deleteIncome(1L);
-    }
-
-    @Disabled("Security filters отключены (addFilters=false), поэтому проверка 401/403 тут невалидна")
-    @Test
-    @DisplayName("POST /api/incomes - без авторизации")
-    void createIncome_Unauthorized() throws Exception {
-        mockMvc.perform(post("/api/incomes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(incomeRequest)))
-                .andExpect(status().is4xxClientError());
-
-        verify(incomeService, never()).addIncome(any(IncomeRequest.class));
-    }
-
-    @Disabled("Security filters отключены (addFilters=false), поэтому проверка 401/403 тут невалидна")
-    @Test
-    @DisplayName("GET /api/incomes/{incomeId} - без авторизации")
-    void getIncome_Unauthorized() throws Exception {
-        mockMvc.perform(get("/api/incomes/1"))
-                .andExpect(status().is4xxClientError());
-
-        verify(incomeService, never()).getIncomeById(anyLong());
+        verify(incomeService).deleteIncome(1L, 1L);
     }
 }

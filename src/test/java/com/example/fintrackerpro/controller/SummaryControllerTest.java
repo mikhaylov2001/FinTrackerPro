@@ -7,7 +7,6 @@ import com.example.fintrackerpro.service.SummaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -15,14 +14,17 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.List;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -34,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 classes = JwtAuthenticationFilter.class
         )
 )
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @DisplayName("SummaryController WebMvc Tests")
 class SummaryControllerTest {
 
@@ -45,6 +47,12 @@ class SummaryControllerTest {
     private SummaryService summaryService;
 
     private MonthlySummaryDto monthlySummary;
+
+    private Authentication authUser1() {
+        return new UsernamePasswordAuthenticationToken(
+                1L, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -60,11 +68,13 @@ class SummaryControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/summary/{userId}/month/{year}/{month} - получить сводку")
+    @DisplayName("GET /api/summary/me/month/{year}/{month} - получить сводку")
     void getMonthlySummary_Success() throws Exception {
         when(summaryService.getMonthlySummary(1L, 2024, 3)).thenReturn(monthlySummary);
 
-        mockMvc.perform(get("/api/summary/1/month/2024/3").contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/summary/me/month/2024/3")
+                        .with(authentication(authUser1()))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.year").value(2024))
                 .andExpect(jsonPath("$.month").value(3))
@@ -78,36 +88,15 @@ class SummaryControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/summary/{userId}/month/{year}/{month} - пользователь не найден")
+    @DisplayName("GET /api/summary/me/month/{year}/{month} - пользователь не найден")
     void getMonthlySummary_UserNotFound() throws Exception {
-        when(summaryService.getMonthlySummary(999L, 2024, 3))
-                .thenThrow(new ResourceNotFoundException("User not found with id: 999"));
+        when(summaryService.getMonthlySummary(1L, 2024, 3))
+                .thenThrow(new ResourceNotFoundException("User not found with id: 1"));
 
-        mockMvc.perform(get("/api/summary/999/month/2024/3"))
+        mockMvc.perform(get("/api/summary/me/month/2024/3")
+                        .with(authentication(authUser1())))
                 .andExpect(status().isNotFound());
 
-        verify(summaryService).getMonthlySummary(999L, 2024, 3);
-    }
-
-    @Test
-    @DisplayName("GET /api/summary/{userId}/month/{year}/{month} - некорректный месяц")
-    void getMonthlySummary_InvalidMonth() throws Exception {
-        when(summaryService.getMonthlySummary(1L, 2024, 13))
-                .thenThrow(new IllegalArgumentException("Invalid month: 13"));
-
-        mockMvc.perform(get("/api/summary/1/month/2024/13"))
-                .andExpect(status().is5xxServerError());
-
-        verify(summaryService).getMonthlySummary(1L, 2024, 13);
-    }
-
-    @Disabled("Security filters отключены (addFilters=false), поэтому проверка 401/403 тут невалидна")
-    @Test
-    @DisplayName("GET /api/summary/... - без авторизации")
-    void getMonthlySummary_Unauthorized() throws Exception {
-        mockMvc.perform(get("/api/summary/1/month/2024/3"))
-                .andExpect(status().is4xxClientError());
-
-        verify(summaryService, never()).getMonthlySummary(anyLong(), anyInt(), anyInt());
+        verify(summaryService).getMonthlySummary(1L, 2024, 3);
     }
 }

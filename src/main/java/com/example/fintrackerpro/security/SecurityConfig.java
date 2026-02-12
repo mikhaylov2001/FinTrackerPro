@@ -1,25 +1,17 @@
 package com.example.fintrackerpro.security;
 
-import com.example.fintrackerpro.security.JwtAuthenticationFilter;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.*;
 
-import java.util.Arrays;
+import java.util.List;
 
 import static org.springframework.http.HttpMethod.GET;
 
@@ -28,75 +20,64 @@ import static org.springframework.http.HttpMethod.GET;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final UserDetailsService userDetailsService;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint, UserDetailsService userDetailsService) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-        this.userDetailsService = userDetailsService;
     }
 
-    // CORS конфигурация
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8082",
-                "http://127.0.0.1:8082",
-                "http://localhost:3000",
-                "http://localhost:8080",
-                "https://fintracker-frontend-seven.vercel.app",
-                "https://fintracker-frontend-m0ae9vtuc-dmitrys-projects-4df4d08c.vercel.app"
+        CorsConfiguration cfg = new CorsConfiguration();
+
+        // ВАЖНО:
+        // - Если allowCredentials=true (cookie refresh), origins должны быть явным списком (не "*") [web:5600]
+        // - Для bearer JWT (Authorization header) credentials обычно не нужны
+        cfg.setAllowedOrigins(List.of(
+                "https://fintracker-frontend-seven.vercel.app"
+                // добавь сюда остальные реальные домены Vercel (preview) при необходимости
         ));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(Arrays.asList("*"));
-        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cfg.setExposedHeaders(List.of("Authorization"));
+        cfg.setAllowCredentials(false); // поставь true, если используешь refresh в HttpOnly cookie
+        cfg.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", cfg);
+        return src;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.disable()) // ок для bearer JWT; для cookie-auth нужен CSRF [web:5078]
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Главная/статика
+                        // Статика/главная
                         .requestMatchers(GET, "/", "/index.html", "/favicon.ico").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
 
-                        // Actuator (минимум)
-                        .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers( "/actuator/info").permitAll()
+                        // Actuator минимум
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
-                        // Swagger (если надо публично)
+                        // Swagger: в проде лучше закрыть или ограничить
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                        // Публичные API
+                        // Auth/public
                         .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
+                .headers(headers -> headers
+                                .contentTypeOptions(Customizer.withDefaults())
+                                .frameOptions(frame -> frame.deny())
+                        // При желании можно добавить CSP (особенно если отдаёшь фронт с бэка) [web:5593]
+                )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-    @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
-        return builder.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }

@@ -2,6 +2,7 @@ package com.example.fintrackerpro.controller;
 
 import com.example.fintrackerpro.dto.AuthResponse;
 import com.example.fintrackerpro.dto.GoogleTokenRequest;
+import com.example.fintrackerpro.dto.PublicUserDto;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserDto;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
@@ -34,122 +35,93 @@ import java.util.Optional;
 @Slf4j
 @Tag(name = "Google Authentication", description = "API для аутентификации через Google OAuth 2.0")
 public class GoogleAuthController {
+
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
 
-    private final String googleClientId;
+    private final GoogleIdTokenVerifier verifier;
 
     public GoogleAuthController(
             UserService userService,
             JwtUtil jwtUtil,
             UserRepository userRepository,
-            @Value("${google.client-id}") String googleClientId
+            @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
     ) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
-        this.googleClientId = googleClientId;
+
+        this.verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(),
+                GsonFactory.getDefaultInstance()
+        )
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
     }
-    @Operation(
-            summary = "Вход через Google",
-            description = "Аутентифицирует пользователя через Google OAuth 2.0. " +
-                    "Принимает Google ID Token, проверяет его подлинность и возвращает JWT токен приложения. " +
-                    "Если пользователь новый — автоматически создаёт аккаунт."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Успешная аутентификация через Google",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = AuthResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Некорректный Google токен",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(example = "{\"error\": \"Invalid Google token\"}")
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Ошибка валидации данных",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(example = "{\"error\": \"Google token is required\"}")
-                    )
-            )
-    })
+
     @PostMapping("/google")
     public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request) {
         try {
-            log.info("🔑 Google OAuth: Verifying token...");
+            if (request == null || request.getIdToken() == null || request.getIdToken().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Google token is required"));
+            }
 
-            // Проверяем Google token
             GoogleIdToken.Payload payload = verifyGoogleToken(request.getIdToken());
+
+            Boolean emailVerified = payload.getEmailVerified();
+            if (emailVerified != null && !emailVerified) {
+                return ResponseEntity.status(401).body(Map.of("error", "Email is not verified"));
+            }
+
             String email = payload.getEmail();
             String googleId = payload.getSubject();
             String name = (String) payload.get("name");
 
-            log.info("✅ Google OAuth verified: email={}, googleId={}, name={}", email, googleId, name);
+            if (email == null || googleId == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
+            }
 
-            // Проверяем, существует ли пользователь
-            Optional<User> existingUser = userRepository.findByEmail(email);
+            // Рекомендация: сначала искать по googleId (если вы храните его уникально)
+            Optional<User> byEmail = userRepository.findByEmail(email);
+
             User user;
+            if (byEmail.isPresent()) {
+                user = byEmail.get();
 
-            if (existingUser.isPresent()) {
-                log.info("👤 User exists, linking Google ID");
-                user = existingUser.get();
+                // Если уже привязан другой Google ID — лучше не перетирать
+                if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
+                    return ResponseEntity.status(409).body(Map.of("error", "Account already linked to another Google ID"));
+                }
+
                 if (user.getGoogleId() == null) {
                     user.setGoogleId(googleId);
                     userRepository.save(user);
                 }
             } else {
-                log.info("🆕 Creating new user via Google OAuth");
-                // ✅ СОЗДАЁМ НОВОГО ПОЛЬЗОВАТЕЛЯ
                 user = userService.registerUserViaGoogle(email, googleId, name);
             }
 
-            // Генерируем JWT token
-            String token = jwtUtil.generateToken(String.valueOf(user.getId()));
-
-            log.info("✅ Google OAuth success: userId={}", user.getId());
+            String token = jwtUtil.generateAccessToken((user.getId()));
 
             return ResponseEntity.ok(new AuthResponse(
                     token,
-                    new UserDto(user.getId(), user.getUserName(), user.getEmail())
+                    new PublicUserDto(user.getId(), user.getUserName(), user.getEmail())
             ));
 
         } catch (IllegalArgumentException e) {
-            log.error("❌ Invalid Google token: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Invalid Google token")
-            );
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
         } catch (Exception e) {
-            log.error("❌ Google OAuth failed: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Google authentication failed: " + e.getMessage())
-            );
+            log.error("Google OAuth failed", e);
+            return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed"));
         }
     }
 
-
     private GoogleIdToken.Payload verifyGoogleToken(String idToken) throws Exception {
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(),
-                new GsonFactory()
-        )
-                .setAudience(Collections.singletonList(googleClientId))
-                .build();
-
         GoogleIdToken token = verifier.verify(idToken);
         if (token == null) {
             throw new IllegalArgumentException("Invalid ID token");
         }
-
         return token.getPayload();
     }
 }

@@ -24,8 +24,8 @@ public class IncomeService {
     private final IncomeRepository incomeRepository;
     private final UserService userService;
 
-    public IncomeResponse addIncome(IncomeRequest request) {
-        User user = userService.getUserById(request.getUserId());
+    public IncomeResponse addIncome(Long userId, IncomeRequest request) {
+        User user = userService.getUserEntityById(userId);
 
         Income income = Income.builder()
                 .user(user)
@@ -37,58 +37,48 @@ public class IncomeService {
 
         Income saved = incomeRepository.save(income);
         log.info("✅ Income created: id={}, userId={}, amount={}, category={}",
-                saved.getId(), user.getId(), saved.getAmount(), saved.getCategory());
+                saved.getId(), userId, saved.getAmount(), saved.getCategory());
         return IncomeResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
-    public IncomeResponse getIncomeById(Long incomeId) {
-        Income income = incomeRepository.findById(incomeId)
-                .orElseThrow(() -> {
-                    log.error("❌ Income not found with id={}", incomeId);
-                    return new ResourceNotFoundException("Income not found with id: " + incomeId);
-                });
-
+    public IncomeResponse getIncomeById(Long userId, Long incomeId) {
+        Income income = incomeRepository.findByIdAndUserId(incomeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Income not found with id: " + incomeId));
         return IncomeResponse.from(income);
     }
-@Transactional(readOnly = true)
+
+    @Transactional(readOnly = true)
     public Page<IncomeResponse> getIncomesByUser(Long userId, Pageable pageable) {
-        userService.getUserById(userId);
+        userService.getUserEntityById(userId);
         return incomeRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(IncomeResponse::from);
     }
-@Transactional(readOnly = true)
+
+    @Transactional(readOnly = true)
     public Page<IncomeResponse> getIncomesByUserAndMonth(Long userId, int year, int month, Pageable pageable) {
         log.info("Getting incomes for user {} {}/{}", userId, year, month);
-        userService.getUserById(userId);
+        userService.getUserEntityById(userId);
         return incomeRepository.findByUserIdAndYearAndMonth(userId, year, month, pageable).map(IncomeResponse::from);
     }
 
-    public IncomeResponse updateIncome(Long incomeId, IncomeRequest request) {
-        Income income = incomeRepository.findById(incomeId)
+    public IncomeResponse updateIncome(Long userId, Long incomeId, IncomeRequest request) {
+        Income income = incomeRepository.findByIdAndUserId(incomeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Income not found with id: " + incomeId));
 
-        if (request.getAmount() != null) {
-            income.setAmount(request.getAmount());
-        }
-        if (request.getCategory() != null) {
-            income.setCategory(request.getCategory());
-        }
-        if (request.getSource() != null) {
-            income.setSource(request.getSource());
-        }
-        if (request.getDate() != null) {
-            income.setDate(request.getDate().atTime(LocalTime.MIDNIGHT));
-        }
+        if (request.getAmount() != null) income.setAmount(request.getAmount());
+        if (request.getCategory() != null) income.setCategory(request.getCategory());
+        if (request.getSource() != null) income.setSource(request.getSource());
+        if (request.getDate() != null) income.setDate(request.getDate().atTime(LocalTime.MIDNIGHT));
 
         Income updated = incomeRepository.save(income);
-        log.info("✅ Income updated: id={}, amount={}", incomeId, updated.getAmount());
+        log.info("✅ Income updated: id={}, userId={}, amount={}", incomeId, userId, updated.getAmount());
         return IncomeResponse.from(updated);
     }
 
-    public void deleteIncome(Long incomeId) {
-        Income income = incomeRepository.findById(incomeId)
+    public void deleteIncome(Long userId, Long incomeId) {
+        Income income = incomeRepository.findByIdAndUserId(incomeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Income not found with id: " + incomeId));
         incomeRepository.delete(income);
-        log.info("✅ Income deleted: id={}", incomeId);
+        log.info("✅ Income deleted: id={}, userId={}", incomeId, userId);
     }
 }

@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +25,7 @@ public class SummaryService {
     public MonthlySummaryDto getMonthlySummary(Long userId, int year, int month) {
 
         // Проверяем что пользователь существует
-        userService.getUserById(userId);
+        userService.getUserEntityById(userId);
 
         BigDecimal totalIncome = incomeRepository.getTotalIncomeByUserAndMonth(userId, year, month);
         BigDecimal totalExpenses = expenseRepository.getTotalExpenseByUserAndMonth(userId, year, month);
@@ -67,9 +68,44 @@ public class SummaryService {
         return total != null ? total : BigDecimal.ZERO;
     }
 
-//    public BigDecimal getBalance(Long userId, int year, int month) {
-//        BigDecimal income = getTotalIncome(userId, year, month);
-//        BigDecimal expense = getTotalExpense(userId, year, month);
-//        return income.subtract(expense);
-//    }
+    public List<MonthlySummaryDto> getAllMonthlySummaries(Long userId) {
+        List<String> months = getUsedMonths(userId);
+        List<MonthlySummaryDto> result = new ArrayList<>();
+
+        for (String monthStr : months) {
+            String[] parts = monthStr.split("-");
+            int year = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+
+            MonthlySummaryDto summary = getMonthlySummary(userId, year, month);
+            result.add(summary);
+        }
+
+        return result;
+    }
+
+    public List<String> getUsedMonths(Long userId) {
+        // TreeSet с обратным порядком — новые месяцы сначала
+        Set<String> months = new TreeSet<>(Collections.reverseOrder());
+
+        // Месяцы из доходов
+        List<Object[]> incomeMonths = incomeRepository.findUsedMonthsByUser(userId);
+        for (Object[] row : incomeMonths) {
+            int year = ((Number) row[0]).intValue();
+            int month = ((Number) row[1]).intValue();
+            months.add(String.format("%04d-%02d", year, month)); // "2026-02"
+        }
+
+        // Месяцы из расходов
+        List<Object[]> expenseMonths = expenseRepository.findUsedMonthsByUser(userId);
+        for (Object[] row : expenseMonths) {
+            int year = ((Number) row[0]).intValue();
+            int month = ((Number) row[1]).intValue();
+            months.add(String.format("%04d-%02d", year, month));
+        }
+
+        return new ArrayList<>(months);
+    }
 }
+
+

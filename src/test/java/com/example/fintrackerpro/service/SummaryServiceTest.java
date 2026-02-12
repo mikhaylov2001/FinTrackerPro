@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,7 +47,7 @@ class SummaryServiceTest {
     @DisplayName("Получить сводку за месяц - успешно")
     void getMonthlySummary_Success() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(expenseRepository.getTotalExpenseByUserAndMonth(1L, 2024, 3))
                 .thenReturn(new BigDecimal("1500.00"));
         when(incomeRepository.getTotalIncomeByUserAndMonth(1L, 2024, 3))
@@ -66,7 +65,7 @@ class SummaryServiceTest {
         assertThat(result.getYear()).isEqualTo(2024);
         assertThat(result.getMonth()).isEqualTo(3);
 
-        verify(userService).getUserById(1L);
+        verify(userService).getUserEntityById(1L);
         verify(expenseRepository).getTotalExpenseByUserAndMonth(1L, 2024, 3);
         verify(incomeRepository).getTotalIncomeByUserAndMonth(1L, 2024, 3);
     }
@@ -75,7 +74,7 @@ class SummaryServiceTest {
     @DisplayName("Сводка за месяц - нет данных (null от репозиториев)")
     void getMonthlySummary_NoData_ReturnsZeros() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(expenseRepository.getTotalExpenseByUserAndMonth(1L, 2024, 3))
                 .thenReturn(null);
         when(incomeRepository.getTotalIncomeByUserAndMonth(1L, 2024, 3))
@@ -96,7 +95,7 @@ class SummaryServiceTest {
     @DisplayName("Сводка за месяц - только расходы")
     void getMonthlySummary_OnlyExpenses() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(expenseRepository.getTotalExpenseByUserAndMonth(1L, 2024, 3))
                 .thenReturn(new BigDecimal("2000"));
         when(incomeRepository.getTotalIncomeByUserAndMonth(1L, 2024, 3))
@@ -116,7 +115,7 @@ class SummaryServiceTest {
     @DisplayName("Сводка за месяц - только доходы")
     void getMonthlySummary_OnlyIncome() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(expenseRepository.getTotalExpenseByUserAndMonth(1L, 2024, 3))
                 .thenReturn(null);
         when(incomeRepository.getTotalIncomeByUserAndMonth(1L, 2024, 3))
@@ -138,7 +137,7 @@ class SummaryServiceTest {
     @DisplayName("Расчёт процента сбережений - корректный")
     void getMonthlySummary_SavingsRateCalculation() {
         // Given
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(incomeRepository.getTotalIncomeByUserAndMonth(1L, 2024, 3))
                 .thenReturn(new BigDecimal("100000"));
         when(expenseRepository.getTotalExpenseByUserAndMonth(1L, 2024, 3))

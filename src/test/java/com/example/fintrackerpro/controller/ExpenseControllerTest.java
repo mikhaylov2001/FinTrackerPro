@@ -15,15 +15,21 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -35,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 classes = JwtAuthenticationFilter.class
         )
 )
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc // ВАЖНО: фильтры включены
 @DisplayName("ExpenseController WebMvc Tests")
 class ExpenseControllerTest {
 
@@ -51,6 +57,12 @@ class ExpenseControllerTest {
     private ExpenseResponse testExpense;
     private ExpenseRequest expenseRequest;
 
+    private Authentication authUser1() {
+        return new UsernamePasswordAuthenticationToken(
+                1L, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+    }
+
     @BeforeEach
     void setUp() {
         testExpense = ExpenseResponse.builder()
@@ -62,8 +74,8 @@ class ExpenseControllerTest {
                 .date(LocalDate.of(2024, 3, 15))
                 .build();
 
+        // userId НЕ передаём в body
         expenseRequest = new ExpenseRequest();
-        expenseRequest.setUserId(1L);
         expenseRequest.setAmount(new BigDecimal("1500.00"));
         expenseRequest.setCategory("Продукты");
         expenseRequest.setDescription("Покупка продуктов");
@@ -73,9 +85,11 @@ class ExpenseControllerTest {
     @Test
     @DisplayName("POST /api/expenses - создать расход")
     void createExpense_Success() throws Exception {
-        when(expenseService.addExpense(any(ExpenseRequest.class))).thenReturn(testExpense);
+        when(expenseService.addExpense(eq(1L), any(ExpenseRequest.class))).thenReturn(testExpense);
 
         mockMvc.perform(post("/api/expenses")
+                        .with(authentication(authUser1()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(expenseRequest)))
                 .andExpect(status().isCreated())
@@ -86,45 +100,50 @@ class ExpenseControllerTest {
                 .andExpect(jsonPath("$.date").value("2024-03-15"))
                 .andExpect(jsonPath("$.amount").value(1500.00));
 
-        verify(expenseService).addExpense(any(ExpenseRequest.class));
+        verify(expenseService).addExpense(eq(1L), any(ExpenseRequest.class));
     }
 
     @Test
     @DisplayName("GET /api/expenses/{expenseId} - получить расход по ID")
     void getExpense_Success() throws Exception {
-        when(expenseService.getExpenseById(1L)).thenReturn(testExpense);
+        when(expenseService.getExpenseById(1L, 1L)).thenReturn(testExpense);
 
-        mockMvc.perform(get("/api/expenses/1"))
+        mockMvc.perform(get("/api/expenses/1")
+                        .with(authentication(authUser1())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.userId").value(1))
                 .andExpect(jsonPath("$.amount").value(1500.00));
 
-        verify(expenseService).getExpenseById(1L);
+        verify(expenseService).getExpenseById(1L, 1L);
     }
 
     @Test
     @DisplayName("PUT /api/expenses/{expenseId} - обновить расход")
     void updateExpense_Success() throws Exception {
-        when(expenseService.updateExpense(eq(1L), any(ExpenseRequest.class))).thenReturn(testExpense);
+        when(expenseService.updateExpense(eq(1L), eq(1L), any(ExpenseRequest.class))).thenReturn(testExpense);
 
         mockMvc.perform(put("/api/expenses/1")
+                        .with(authentication(authUser1()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(expenseRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(expenseService).updateExpense(eq(1L), any(ExpenseRequest.class));
+        verify(expenseService).updateExpense(eq(1L), eq(1L), any(ExpenseRequest.class));
     }
 
     @Test
     @DisplayName("DELETE /api/expenses/{expenseId} - удалить расход")
     void deleteExpense_Success() throws Exception {
-        doNothing().when(expenseService).deleteExpense(1L);
+        doNothing().when(expenseService).deleteExpense(1L, 1L);
 
-        mockMvc.perform(delete("/api/expenses/1"))
+        mockMvc.perform(delete("/api/expenses/1")
+                        .with(authentication(authUser1()))
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        verify(expenseService).deleteExpense(1L);
+        verify(expenseService).deleteExpense(1L, 1L);
     }
 }

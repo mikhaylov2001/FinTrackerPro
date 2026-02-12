@@ -12,7 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByChatId(Long chatId);
 
 
-    Object existsByUserName(String s);
+    boolean existsByUserName(String s);
 
-    Object existsByEmail(String mail);
+    boolean existsByEmail(String mail);
 }

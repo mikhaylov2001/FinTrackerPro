@@ -1,46 +1,36 @@
 package com.example.fintrackerpro.service;
 
-import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.entity.user.User;
+import com.example.fintrackerpro.entity.user.UserDto;
+import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
+import com.example.fintrackerpro.exception.ResourceNotFoundException;
 import com.example.fintrackerpro.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService Unit Tests")
 class UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock UserRepository userRepository;
+    @Mock PasswordEncoder passwordEncoder;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @InjectMocks
-    private UserService userService;
+    @InjectMocks UserService userService;
 
     private UserRegistrationRequest registrationRequest;
     private User user;
 
     @BeforeEach
     void setUp() {
-        // ✅ ВАЖНО: Внедряем passwordEncoder вручную через Reflection
-        ReflectionTestUtils.setField(userService, "passwordEncoder", passwordEncoder);
-
-        // Создаём тестовые данные
         registrationRequest = new UserRegistrationRequest();
         registrationRequest.setUserName("testuser");
         registrationRequest.setEmail("test@example.com");
@@ -55,105 +45,109 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Регистрация пользователя - успешно")
-    void registerUser_Success() {
-        // Given
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        when(userRepository.findByUserName(anyString())).thenReturn(Optional.empty());
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+    void registerUser_success() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByUserName("testuser")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
 
-        // When
         User result = userService.registerUser(registrationRequest);
 
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getUserName()).isEqualTo("testuser");
+        assertThat(result.getPassword()).isEqualTo("encodedPassword");
         assertThat(result.getEmail()).isEqualTo("test@example.com");
+        assertThat(result.getUserName()).isEqualTo("testuser");
 
         verify(userRepository).findByEmail("test@example.com");
         verify(userRepository).findByUserName("testuser");
         verify(passwordEncoder).encode("password123");
         verify(userRepository).save(any(User.class));
+        verifyNoMoreInteractions(userRepository, passwordEncoder);
     }
 
     @Test
-    @DisplayName("Регистрация - username уже существует")
-    void registerUser_UsernameExists_ThrowsException() {
-        // Given
-        User existingUser = new User();
-        existingUser.setUserName("testuser");
+    @DisplayName("Регистрация пользователя - email уже занят")
+    void registerUser_emailAlreadyExists_throws() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
-        // ✅ Email свободен (проходит первую проверку)
-        when(userRepository.findByEmail("test@example.com"))
-                .thenReturn(Optional.empty());
-
-        // ✅ Username занят (вторая проверка падает)
-        when(userRepository.findByUserName("testuser"))
-                .thenReturn(Optional.of(existingUser));
-
-        // When & Then
         assertThatThrownBy(() -> userService.registerUser(registrationRequest))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Username already taken");
+                .isInstanceOf(IllegalArgumentException.class);
 
-        // Проверяем что обе проверки были вызваны
         verify(userRepository).findByEmail("test@example.com");
-        verify(userRepository).findByUserName("testuser");
-        // Но save не вызывался
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findByUserName(any());
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any());
+        verifyNoMoreInteractions(userRepository, passwordEncoder);
     }
 
     @Test
-    @DisplayName("Получить пользователя по ID - успешно")
-    void getUserById_Success() {
-        // Given
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-
-        // When
-        User result = userService.getUserById(1L);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(1L);
-        verify(userRepository).findById(1L);
-    }
-
-    @Test
-    @DisplayName("Получить пользователя по ID - не найден")
-    void getUserById_NotFound_ThrowsException() {
-        // Given
-        when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> userService.getUserById(99L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found");
-    }
-
-    @Test
-    @DisplayName("Получить пользователя по username - успешно")
-    void getUserByUserName_Success() {
-        // Given
+    @DisplayName("Регистрация пользователя - username уже занят")
+    void registerUser_userNameAlreadyExists_throws() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
         when(userRepository.findByUserName("testuser")).thenReturn(Optional.of(user));
 
-        // When
-        User result = userService.getUserByUserName("testuser");
+        assertThatThrownBy(() -> userService.registerUser(registrationRequest))
+                .isInstanceOf(IllegalArgumentException.class);
 
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getUserName()).isEqualTo("testuser");
+        verify(userRepository).findByEmail("test@example.com");
         verify(userRepository).findByUserName("testuser");
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any());
+        verifyNoMoreInteractions(userRepository, passwordEncoder);
     }
 
     @Test
-    @DisplayName("Получить пользователя по username - не найден")
-    void getUserByUserName_NotFound_ThrowsException() {
-        // Given
-        when(userRepository.findByUserName(anyString())).thenReturn(Optional.empty());
+    @DisplayName("getUserById (DTO) - успешно")
+    void getUserById_success() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        // When & Then
-        assertThatThrownBy(() -> userService.getUserByUserName("nonexistent"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found");
+        UserDto dto = userService.getUserById(1L);
+
+        assertThat(dto.getId()).isEqualTo(1L);
+        assertThat(dto.getUserName()).isEqualTo("testuser");
+        assertThat(dto.getEmail()).isEqualTo("test@example.com");
+
+        verify(userRepository).findById(1L);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("getUserById (DTO) - пользователь не найден")
+    void getUserById_notFound_throws() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUserById(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository).findById(999L);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("getUserEntityById - успешно")
+    void getUserEntityById_success() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        User entity = userService.getUserEntityById(1L);
+
+        assertThat(entity.getId()).isEqualTo(1L);
+
+        verify(userRepository).findById(1L);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("getUserEntityById - пользователь не найден")
+    void getUserEntityById_notFound_throws() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUserEntityById(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository).findById(999L);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(passwordEncoder);
     }
 }

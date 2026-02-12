@@ -8,12 +8,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.reactive.resource.NoResourceFoundException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -138,7 +141,25 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(
+            ResponseStatusException ex,
+            WebRequest request
+    ) {
+        ErrorResponse error = ErrorResponse.builder()
+                .status(ex.getStatusCode().value())
+                .message(ex.getReason() != null ? ex.getReason() : ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
 
+        return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleIllegalArgument(IllegalArgumentException e, HttpServletRequest req) {
+        return Map.of("status", 409, "message", e.getMessage(), "path", req.getRequestURI());
+    }
 
 
 }

@@ -63,8 +63,8 @@ class IncomeServiceTest {
         testIncome.setDate(LocalDate.of(2024, 3, 15).atTime(LocalTime.MIDNIGHT));
         testIncome.setCreatedAt(LocalDateTime.now());
 
+        // userId больше НЕ хранится в request
         incomeRequest = new IncomeRequest();
-        incomeRequest.setUserId(1L);
         incomeRequest.setAmount(new BigDecimal("50000.00"));
         incomeRequest.setSource("Зарплата");
         incomeRequest.setCategory("Зарплата за март");
@@ -74,10 +74,10 @@ class IncomeServiceTest {
     @Test
     @DisplayName("Добавить доход - успешно")
     void addIncome_Success() {
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
         when(incomeRepository.save(any(Income.class))).thenReturn(testIncome);
 
-        IncomeResponse result = incomeService.addIncome(incomeRequest);
+        IncomeResponse result = incomeService.addIncome(1L, incomeRequest);
 
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
@@ -87,49 +87,49 @@ class IncomeServiceTest {
         assertThat(result.getCategory()).isEqualTo("Зарплата за март");
         assertThat(result.getDate()).isEqualTo(LocalDate.of(2024, 3, 15));
 
-        verify(userService).getUserById(1L);
+        verify(userService).getUserEntityById(1L);
         verify(incomeRepository).save(any(Income.class));
     }
 
     @Test
     @DisplayName("Добавить доход - пользователь не найден")
     void addIncome_UserNotFound_ThrowsException() {
-        when(userService.getUserById(1L))
+        when(userService.getUserEntityById(1L))
                 .thenThrow(new ResourceNotFoundException("User not found"));
 
-        assertThatThrownBy(() -> incomeService.addIncome(incomeRequest))
+        assertThatThrownBy(() -> incomeService.addIncome(1L, incomeRequest))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("User not found");
 
-        verify(userService).getUserById(1L);
+        verify(userService).getUserEntityById(1L);
         verify(incomeRepository, never()).save(any(Income.class));
     }
 
     @Test
-    @DisplayName("Получить доход по ID - успешно")
+    @DisplayName("Получить доход по ID - успешно (только свой)")
     void getIncomeById_Success() {
-        when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
+        when(incomeRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testIncome));
 
-        IncomeResponse result = incomeService.getIncomeById(1L);
+        IncomeResponse result = incomeService.getIncomeById(1L, 1L);
 
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getUserId()).isEqualTo(1L);
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("50000.00"));
 
-        verify(incomeRepository).findById(1L);
+        verify(incomeRepository).findByIdAndUserId(1L, 1L);
     }
 
     @Test
-    @DisplayName("Получить доход по ID - не найден")
+    @DisplayName("Получить доход по ID - не найден (или не принадлежит пользователю)")
     void getIncomeById_NotFound_ThrowsException() {
-        when(incomeRepository.findById(99L)).thenReturn(Optional.empty());
+        when(incomeRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> incomeService.getIncomeById(99L))
+        assertThatThrownBy(() -> incomeService.getIncomeById(1L, 99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Income not found");
 
-        verify(incomeRepository).findById(99L);
+        verify(incomeRepository).findByIdAndUserId(99L, 1L);
     }
 
     @Test
@@ -138,9 +138,8 @@ class IncomeServiceTest {
         Page<Income> incomePage = new PageImpl<>(Arrays.asList(testIncome));
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(userService.getUserById(1L)).thenReturn(testUser);
-        when(incomeRepository.findByUserIdOrderByCreatedAtDesc(1L, pageable))
-                .thenReturn(incomePage);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
+        when(incomeRepository.findByUserIdOrderByCreatedAtDesc(1L, pageable)).thenReturn(incomePage);
 
         Page<IncomeResponse> result = incomeService.getIncomesByUser(1L, pageable);
 
@@ -150,7 +149,7 @@ class IncomeServiceTest {
         assertThat(dto.getId()).isEqualTo(1L);
         assertThat(dto.getUserId()).isEqualTo(1L);
 
-        verify(userService).getUserById(1L);
+        verify(userService).getUserEntityById(1L);
         verify(incomeRepository).findByUserIdOrderByCreatedAtDesc(1L, pageable);
     }
 
@@ -160,21 +159,20 @@ class IncomeServiceTest {
         Page<Income> incomePage = new PageImpl<>(Arrays.asList(testIncome));
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(userService.getUserById(1L)).thenReturn(testUser);
-        when(incomeRepository.findByUserIdAndYearAndMonth(1L, 2024, 3, pageable))
-                .thenReturn(incomePage);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
+        when(incomeRepository.findByUserIdAndYearAndMonth(1L, 2024, 3, pageable)).thenReturn(incomePage);
 
         Page<IncomeResponse> result = incomeService.getIncomesByUserAndMonth(1L, 2024, 3, pageable);
 
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
 
-        verify(userService).getUserById(1L);
+        verify(userService).getUserEntityById(1L);
         verify(incomeRepository).findByUserIdAndYearAndMonth(1L, 2024, 3, pageable);
     }
 
     @Test
-    @DisplayName("Обновить доход - успешно")
+    @DisplayName("Обновить доход - успешно (только свой)")
     void updateIncome_Success() {
         IncomeRequest updateRequest = new IncomeRequest();
         updateRequest.setAmount(new BigDecimal("60000.00"));
@@ -182,10 +180,10 @@ class IncomeServiceTest {
         updateRequest.setCategory("Годовая премия");
         updateRequest.setDate(LocalDate.of(2024, 3, 20));
 
-        when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
+        when(incomeRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testIncome));
         when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        IncomeResponse result = incomeService.updateIncome(1L, updateRequest);
+        IncomeResponse result = incomeService.updateIncome(1L, 1L, updateRequest);
 
         assertThat(result).isNotNull();
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("60000.00"));
@@ -193,7 +191,7 @@ class IncomeServiceTest {
         assertThat(result.getCategory()).isEqualTo("Годовая премия");
         assertThat(result.getDate()).isEqualTo(LocalDate.of(2024, 3, 20));
 
-        verify(incomeRepository).findById(1L);
+        verify(incomeRepository).findByIdAndUserId(1L, 1L);
         verify(incomeRepository).save(any(Income.class));
     }
 
@@ -203,53 +201,54 @@ class IncomeServiceTest {
         IncomeRequest partialRequest = new IncomeRequest();
         partialRequest.setAmount(new BigDecimal("55000.00"));
 
-        when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
+        when(incomeRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testIncome));
         when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        IncomeResponse result = incomeService.updateIncome(1L, partialRequest);
+        IncomeResponse result = incomeService.updateIncome(1L, 1L, partialRequest);
 
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("55000.00"));
         assertThat(result.getSource()).isEqualTo("Зарплата");
         assertThat(result.getCategory()).isEqualTo("Зарплата за март");
 
+        verify(incomeRepository).findByIdAndUserId(1L, 1L);
         verify(incomeRepository).save(any(Income.class));
     }
 
     @Test
-    @DisplayName("Удалить доход - успешно")
+    @DisplayName("Удалить доход - успешно (только свой)")
     void deleteIncome_Success() {
-        when(incomeRepository.findById(1L)).thenReturn(Optional.of(testIncome));
+        when(incomeRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testIncome));
         doNothing().when(incomeRepository).delete(any(Income.class));
 
-        incomeService.deleteIncome(1L);
+        incomeService.deleteIncome(1L, 1L);
 
-        verify(incomeRepository).findById(1L);
+        verify(incomeRepository).findByIdAndUserId(1L, 1L);
         verify(incomeRepository).delete(testIncome);
     }
 
     @Test
-    @DisplayName("Удалить доход - не найден")
+    @DisplayName("Удалить доход - не найден (или не принадлежит пользователю)")
     void deleteIncome_NotFound_ThrowsException() {
-        when(incomeRepository.findById(99L)).thenReturn(Optional.empty());
+        when(incomeRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> incomeService.deleteIncome(99L))
+        assertThatThrownBy(() -> incomeService.deleteIncome(1L, 99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Income not found");
 
-        verify(incomeRepository).findById(99L);
+        verify(incomeRepository).findByIdAndUserId(99L, 1L);
         verify(incomeRepository, never()).delete(any(Income.class));
     }
 
     @Test
     @DisplayName("Добавить доход - проверка преобразования даты (пишем в БД полночь)")
     void addIncome_DateConversion_Success() {
-        when(userService.getUserById(1L)).thenReturn(testUser);
+        when(userService.getUserEntityById(1L)).thenReturn(testUser);
 
         ArgumentCaptor<Income> incomeCaptor = ArgumentCaptor.forClass(Income.class);
         when(incomeRepository.save(incomeCaptor.capture()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        IncomeResponse result = incomeService.addIncome(incomeRequest);
+        IncomeResponse result = incomeService.addIncome(1L, incomeRequest);
 
         Income savedEntity = incomeCaptor.getValue();
         assertThat(savedEntity.getDate()).isNotNull();

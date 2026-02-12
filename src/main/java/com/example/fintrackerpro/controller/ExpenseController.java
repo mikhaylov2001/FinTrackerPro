@@ -3,6 +3,7 @@ package com.example.fintrackerpro.controller;
 import com.example.fintrackerpro.dto.ExpenseResponse;
 import com.example.fintrackerpro.entity.expense.Expense;
 import com.example.fintrackerpro.entity.expense.ExpenseRequest;
+import com.example.fintrackerpro.security.CurrentUser;
 import com.example.fintrackerpro.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -28,126 +30,104 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Expenses", description = "API для управления расходами пользователя")
 @SecurityRequirement(name = "bearerAuth")
 public class ExpenseController {
-    
+
     private final ExpenseService expenseService;
 
-    @Operation(
-            summary = "Создать новый расход",
-            description = "Добавляет новый расход для текущего пользователя"
-    )
+    @Operation(summary = "Создать новый расход (текущий пользователь)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Расход успешно создан"),
             @ApiResponse(responseCode = "400", description = "Некорректные данные"),
             @ApiResponse(responseCode = "401", description = "Не авторизован")
     })
-
     @PostMapping
-    public ResponseEntity<ExpenseResponse> createExpense(@Valid @RequestBody ExpenseRequest request) {
-        log.info("📥 POST /api/expenses - Create expense for user {}", request.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.addExpense(request));
+    public ResponseEntity<ExpenseResponse> createExpense(@Valid @RequestBody ExpenseRequest request,
+                                                         Authentication auth) {
+        Long userId = CurrentUser.id(auth);
+        log.info("📥 POST /api/expenses (userId={})", userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.addExpense(userId, request));
     }
-    @Operation(
-            summary = "Получить расход по ID",
-            description = "Возвращает информацию о конкретном расходе по его идентификатору"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Расход найден"),
-            @ApiResponse(responseCode = "404", description = "Расход не найден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
 
-
-
+    @Operation(summary = "Получить расход по ID (текущий пользователь)")
     @GetMapping("/{expenseId}")
-    public ResponseEntity<ExpenseResponse> getExpense(@PathVariable Long expenseId) {
-        log.info("📤 GET /api/expenses/{}", expenseId);
-        return ResponseEntity.ok(expenseService.getExpenseById(expenseId));
+    public ResponseEntity<ExpenseResponse> getExpense(@PathVariable Long expenseId, Authentication auth) {
+        Long userId = CurrentUser.id(auth);
+        log.info("📤 GET /api/expenses/{} (userId={})", expenseId, userId);
+        return ResponseEntity.ok(expenseService.getExpenseById(userId, expenseId));
     }
 
-    @Operation(
-            summary = "Получить все расходы пользователя",
-            description = "Возвращает список всех расходов текущего аутентифицированного пользователя"
-    )
+    @Operation(summary = "Получить все расходы (текущий пользователь)")
     @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Список расходов получен успешно",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Expense.class))
-            ),
-            @ApiResponse(responseCode = "401", description = "Не авторизован (отсутствует или некорректный токен)")
-    })
-
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<Page<ExpenseResponse>> getUserExpenses(
-        @PathVariable Long userId,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
-    ) {
-        log.info("📤 GET /api/expenses/user/{}", userId);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<ExpenseResponse> expensesByUser = expenseService.getExpensesByUser(userId, pageable);
-        return ResponseEntity.ok(expensesByUser);
-    }
-    @Operation(
-            summary = "Получить расходы по категории и периоду",
-            description = "Фильтрует расходы пользователя по месяцу, году и опциональной категории"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Список расходов получен"),
+            @ApiResponse(responseCode = "200", description = "Список расходов получен успешно",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Expense.class))),
             @ApiResponse(responseCode = "401", description = "Не авторизован")
     })
-
-
-    @GetMapping("/user/{userId}/month/{year}/{month}")
-    public ResponseEntity<Page<ExpenseResponse>> getUserExpensesByMonth(
-        @PathVariable Long userId,
-        @PathVariable int year,
-        @PathVariable int month,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
-    ) {
-        log.info("📤 GET /api/expenses/user/{}/month/{}/{}", userId, year, month);
+    @GetMapping("/me")
+    public ResponseEntity<Page<ExpenseResponse>> getMyExpenses(@RequestParam(defaultValue = "0") int page,
+                                                               @RequestParam(defaultValue = "10") int size,
+                                                               Authentication auth) {
+        Long userId = CurrentUser.id(auth);
         Pageable pageable = PageRequest.of(page, size);
-        Page<ExpenseResponse> expensesByUserAndMonth = expenseService.getExpensesByUserAndMonth(userId, year, month, pageable);
-        return ResponseEntity.ok(expensesByUserAndMonth);
+        log.info("📤 GET /api/expenses/me (userId={})", userId);
+        return ResponseEntity.ok(expenseService.getExpensesByUser(userId, pageable));
     }
-    @Operation(
-            summary = "Обновить расход",
-            description = "Обновляет существующий расход пользователя"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Расход успешно обновлён"),
-            @ApiResponse(responseCode = "404", description = "Расход не найден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
 
+    @Operation(summary = "Получить расходы за месяц (текущий пользователь)")
+    @GetMapping("/me/month/{year}/{month}")
+    public ResponseEntity<Page<ExpenseResponse>> getMyExpensesByMonth(@PathVariable int year,
+                                                                      @PathVariable int month,
+                                                                      @RequestParam(defaultValue = "0") int page,
+                                                                      @RequestParam(defaultValue = "10") int size,
+                                                                      Authentication auth) {
+        Long userId = CurrentUser.id(auth);
+        Pageable pageable = PageRequest.of(page, size);
+        log.info("📤 GET /api/expenses/me/month/{}/{} (userId={})", year, month, userId);
+        return ResponseEntity.ok(expenseService.getExpensesByUserAndMonth(userId, year, month, pageable));
+    }
 
-
+    @Operation(summary = "Обновить расход (текущий пользователь)")
     @PutMapping("/{expenseId}")
-    public ResponseEntity<ExpenseResponse> updateExpense(
-        @PathVariable Long expenseId,
-        @Valid @RequestBody ExpenseRequest request
-    ) {
-        log.info("🔄 PUT /api/expenses/{}", expenseId);
-        ExpenseResponse body = expenseService.updateExpense(expenseId, request);
-        return ResponseEntity.ok(body);
+    public ResponseEntity<ExpenseResponse> updateExpense(@PathVariable Long expenseId,
+                                                         @Valid @RequestBody ExpenseRequest request,
+                                                         Authentication auth) {
+        Long userId = CurrentUser.id(auth);
+        log.info("🔄 PUT /api/expenses/{} (userId={})", expenseId, userId);
+        return ResponseEntity.ok(expenseService.updateExpense(userId, expenseId, request));
     }
-    @Operation(
-            summary = "Удалить расход",
-            description = "Удаляет расход пользователя по ID"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Расход успешно удалён"),
-            @ApiResponse(responseCode = "404", description = "Расход не найден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
 
-
-
+    @Operation(summary = "Удалить расход (текущий пользователь)")
     @DeleteMapping("/{expenseId}")
-    public ResponseEntity<Void> deleteExpense(@PathVariable Long expenseId) {
-        log.info("🗑️  DELETE /api/expenses/{}", expenseId);
-        expenseService.deleteExpense(expenseId);
+    public ResponseEntity<Void> deleteExpense(@PathVariable Long expenseId, Authentication auth) {
+        Long userId = CurrentUser.id(auth);
+        log.info("🗑️ DELETE /api/expenses/{} (userId={})", expenseId, userId);
+        expenseService.deleteExpense(userId, expenseId);
         return ResponseEntity.noContent().build();
     }
+
+    // ---- Legacy: оставляем маршруты, но игнорируем userId из path
+    @Deprecated
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Page<ExpenseResponse>> getUserExpensesLegacy(@PathVariable Long userId,
+                                                                       @RequestParam(defaultValue = "0") int page,
+                                                                       @RequestParam(defaultValue = "10") int size,
+                                                                       Authentication auth) {
+        Long current = CurrentUser.id(auth);
+        Pageable pageable = PageRequest.of(page, size);
+        log.warn("Legacy expenses list used: path userId={}, current userId={}", userId, current);
+        return ResponseEntity.ok(expenseService.getExpensesByUser(current, pageable));
+    }
+
+    @Deprecated
+    @GetMapping("/user/{userId}/month/{year}/{month}")
+    public ResponseEntity<Page<ExpenseResponse>> getUserExpensesByMonthLegacy(@PathVariable Long userId,
+                                                                              @PathVariable int year,
+                                                                              @PathVariable int month,
+                                                                              @RequestParam(defaultValue = "0") int page,
+                                                                              @RequestParam(defaultValue = "10") int size,
+                                                                              Authentication auth) {
+        Long current = CurrentUser.id(auth);
+        Pageable pageable = PageRequest.of(page, size);
+        log.warn("Legacy expenses by month used: path userId={}, current userId={}", userId, current);
+        return ResponseEntity.ok(expenseService.getExpensesByUserAndMonth(current, year, month, pageable));
+    }
 }
+
