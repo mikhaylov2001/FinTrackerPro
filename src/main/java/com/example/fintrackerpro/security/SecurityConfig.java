@@ -33,7 +33,7 @@ public class SecurityConfig {
         // - Если allowCredentials=true (cookie refresh), origins должны быть явным списком (не "*") [web:5600]
         // - Для bearer JWT (Authorization header) credentials обычно не нужны
         cfg.setAllowedOrigins(List.of(
-                "https://fintracker-frontend-seven.vercel.app"
+                "https://fintrackerpro.vercel.app"
                 // добавь сюда остальные реальные домены Vercel (preview) при необходимости
         ));
 
