@@ -32,13 +32,16 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         registrationRequest = new UserRegistrationRequest();
-        registrationRequest.setUserName("testuser");
+        registrationRequest.setFirstName("Test");
+        registrationRequest.setLastName("User");
         registrationRequest.setEmail("test@example.com");
         registrationRequest.setPassword("password123");
 
         user = new User();
         user.setId(1L);
-        user.setUserName("testuser");
+        user.setUserName("test"); // генерируется из email до @
+        user.setFirstName("Test");
+        user.setLastName("User");
         user.setEmail("test@example.com");
         user.setPassword("encodedPassword");
     }
@@ -47,7 +50,6 @@ class UserServiceTest {
     @DisplayName("Регистрация пользователя - успешно")
     void registerUser_success() {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
-        when(userRepository.findByUserName("testuser")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
 
@@ -55,10 +57,11 @@ class UserServiceTest {
 
         assertThat(result.getPassword()).isEqualTo("encodedPassword");
         assertThat(result.getEmail()).isEqualTo("test@example.com");
-        assertThat(result.getUserName()).isEqualTo("testuser");
+        assertThat(result.getUserName()).isEqualTo("test");
+        assertThat(result.getFirstName()).isEqualTo("Test");
+        assertThat(result.getLastName()).isEqualTo("User");
 
         verify(userRepository).findByEmail("test@example.com");
-        verify(userRepository).findByUserName("testuser");
         verify(passwordEncoder).encode("password123");
         verify(userRepository).save(any(User.class));
         verifyNoMoreInteractions(userRepository, passwordEncoder);
@@ -73,23 +76,6 @@ class UserServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(userRepository).findByEmail("test@example.com");
-        verify(userRepository, never()).findByUserName(any());
-        verify(passwordEncoder, never()).encode(any());
-        verify(userRepository, never()).save(any());
-        verifyNoMoreInteractions(userRepository, passwordEncoder);
-    }
-
-    @Test
-    @DisplayName("Регистрация пользователя - username уже занят")
-    void registerUser_userNameAlreadyExists_throws() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
-        when(userRepository.findByUserName("testuser")).thenReturn(Optional.of(user));
-
-        assertThatThrownBy(() -> userService.registerUser(registrationRequest))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        verify(userRepository).findByEmail("test@example.com");
-        verify(userRepository).findByUserName("testuser");
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any());
         verifyNoMoreInteractions(userRepository, passwordEncoder);
@@ -103,7 +89,7 @@ class UserServiceTest {
         UserDto dto = userService.getUserById(1L);
 
         assertThat(dto.getId()).isEqualTo(1L);
-        assertThat(dto.getUserName()).isEqualTo("testuser");
+        assertThat(dto.getUserName()).isEqualTo("test");
         assertThat(dto.getEmail()).isEqualTo("test@example.com");
 
         verify(userRepository).findById(1L);
