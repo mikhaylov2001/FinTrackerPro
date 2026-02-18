@@ -55,6 +55,12 @@ public class User extends UserDto {
     @Schema(description = "Google ID (если регистрация через Google)")
     private String googleId;
 
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
     // Геттеры и сеттеры
     public String getGoogleId() {
         return googleId;

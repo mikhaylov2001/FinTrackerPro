@@ -1,5 +1,6 @@
 package com.example.fintrackerpro.service;
 
+import com.example.fintrackerpro.dto.UpdateProfileRequest;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserDto;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
@@ -145,4 +146,26 @@ public class UserService {
         userRepository.save(user);
         log.info("🔐 Password changed for userId={}", userId);
     }
+
+    // интерфейс / сервис
+    public User updateProfile(Long userId, UpdateProfileRequest req) {
+        User user = getUserEntityById(userId);
+        if (req.getFirstName() != null) {
+            user.setFirstName(req.getFirstName());
+        }
+        if (req.getLastName() != null) {
+            user.setLastName(req.getLastName());
+        }
+        return userRepository.save(user);
+    }
+
+    public User changeEmail(Long userId, String newEmail, String password) {
+        User user = getUserEntityById(userId);
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new IllegalArgumentException("Invalid password");
+        }
+        user.setEmail(newEmail);
+        return userRepository.save(user);
+    }
+
 }

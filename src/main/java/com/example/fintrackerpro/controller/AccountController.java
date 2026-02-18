@@ -1,6 +1,10 @@
 package com.example.fintrackerpro.controller;
 
 import com.example.fintrackerpro.dto.ChangePasswordRequest;
+import com.example.fintrackerpro.dto.PublicUserDto;
+import com.example.fintrackerpro.dto.UpdateEmailRequest;
+import com.example.fintrackerpro.dto.UpdateProfileRequest;
+import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.security.CurrentUser;
 import com.example.fintrackerpro.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,5 +48,40 @@ public class AccountController {
         userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
 
         return ResponseEntity.ok(Map.of("message", "Пароль успешно изменён"));
+    }
+
+
+    @PutMapping("/profile")
+    public ResponseEntity<PublicUserDto> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest req,
+            Authentication auth
+    ) {
+        Long userId = (Long) auth.getPrincipal(); // или вытащи из Jwt, как у тебя принято
+        User updated = userService.updateProfile(userId, req);
+
+        return ResponseEntity.ok(new PublicUserDto(
+                updated.getId(),
+                updated.getUserName(),
+                updated.getEmail(),
+                updated.getFirstName(),
+                updated.getLastName()
+        ));
+    }
+
+    @PutMapping("/email")
+    public ResponseEntity<PublicUserDto> updateEmail(
+            @Valid @RequestBody UpdateEmailRequest req,
+            Authentication auth
+    ) {
+        Long userId = (Long) auth.getPrincipal();
+        User updated = userService.changeEmail(userId, req.getNewEmail(), req.getPassword());
+
+        return ResponseEntity.ok(new PublicUserDto(
+                updated.getId(),
+                updated.getUserName(),
+                updated.getEmail(),
+                updated.getFirstName(),
+                updated.getLastName()
+        ));
     }
 }
