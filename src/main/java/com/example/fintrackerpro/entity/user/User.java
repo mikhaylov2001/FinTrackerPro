@@ -79,6 +79,4 @@ public class User extends UserDto {
         updatedAt = LocalDateTime.now();
     }
 
-
-
 }
