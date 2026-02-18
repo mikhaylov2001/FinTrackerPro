@@ -72,12 +72,6 @@ public class UserService {
                 .toList();
     }
 
-    public UserDto getUserByUserName(String userName) {
-        User user = userRepository.findByUserName(userName)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userName));
-        return toDto(user);
-    }
-
     // ДЛЯ ЛОГИНА: получаем по email
     public User getUserEntityByEmail(String email) {
         return userRepository.findByEmail(email)
