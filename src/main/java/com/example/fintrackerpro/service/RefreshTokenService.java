@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
-import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -17,9 +17,29 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository repo;
 
-    public record StoredRefresh(String id, String rawToken) {}
+    public record StoredRefresh(Long userId) {}
 
-    public StoredRefresh create(String refreshId, Long userId, String refreshJwt, Instant expiresAt) {
+    public StoredRefresh validateAndGet(String refreshId, String refreshToken) {
+        Optional<RefreshTokenEntity> opt = repo.findById(refreshId);
+        if (opt.isEmpty()) {
+            return null;
+        }
+
+        RefreshTokenEntity entity = opt.get();
+
+        if (!entity.isActive()) {
+            return null;
+        }
+
+        String incomingHash = sha256(refreshToken);
+        if (!incomingHash.equals(entity.getTokenHash())) {
+            return null;
+        }
+
+        return new StoredRefresh(entity.getUserId());
+    }
+
+    public void create(String refreshId, Long userId, String refreshJwt, Instant expiresAt) {
         RefreshTokenEntity e = RefreshTokenEntity.builder()
                 .id(refreshId)
                 .userId(userId)
@@ -29,7 +49,6 @@ public class RefreshTokenService {
                 .build();
 
         repo.save(e);
-        return new StoredRefresh(refreshId, refreshJwt);
     }
 
     public RefreshTokenEntity requireActive(String id, String refreshJwt) {
