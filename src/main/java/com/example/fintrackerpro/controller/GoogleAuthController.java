@@ -106,7 +106,7 @@ public class GoogleAuthController {
 
             return ResponseEntity.ok(new AuthResponse(
                     token,
-                    new PublicUserDto(user.getId(), user.getUserName(), user.getEmail())
+                    new PublicUserDto(user.getId(), user.getUserName(), user.getEmail(), user.getFirstName(), user.getLastName())
             ));
 
         } catch (IllegalArgumentException e) {

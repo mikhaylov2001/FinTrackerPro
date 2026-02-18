@@ -89,7 +89,7 @@ public class AuthController {
 
         return ResponseEntity.status(status).body(Map.of(
                 "token", access,
-                "user", new PublicUserDto(user.getId(), user.getUserName(), user.getEmail())
+                "user", new PublicUserDto(user.getId(), user.getUserName(), user.getEmail(),user.getFirstName(), user.getLastName())
         ));
     }
     @PostMapping("/refresh")
