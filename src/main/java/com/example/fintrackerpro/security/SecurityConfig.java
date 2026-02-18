@@ -40,7 +40,7 @@ public class SecurityConfig {
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         cfg.setExposedHeaders(List.of("Authorization"));
-        cfg.setAllowCredentials(false); // поставь true, если используешь refresh в HttpOnly cookie
+        cfg.setAllowCredentials(true); // поставь true, если используешь refresh в HttpOnly cookie
         cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
