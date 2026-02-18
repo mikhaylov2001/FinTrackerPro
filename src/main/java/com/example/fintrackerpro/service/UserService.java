@@ -28,20 +28,20 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    // РЕГИСТРАЦИЯ: firstName + lastName + email + password
     public User registerUser(UserRegistrationRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        if (userRepository.findByUserName(request.getUserName()).isPresent()) {
-            throw new IllegalArgumentException("Username already taken");
-        }
+        String generatedUserName = request.getEmail().split("@")[0];
 
         User user = User.builder()
-                .userName(request.getUserName())
+                .userName(generatedUserName)
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .chatId(request.getChatId())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
                 .build();
 
         return userRepository.save(user);
@@ -58,8 +58,6 @@ public class UserService {
     public UserDto getUserById(Long userId) {
         return toDto(getUserEntityById(userId));
     }
-
-
 
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -80,12 +78,11 @@ public class UserService {
         return toDto(user);
     }
 
-    // UserService
-    public User getUserEntityByUserName(String userName) {
-        return userRepository.findByUserName(userName)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userName));
+    // ДЛЯ ЛОГИНА: получаем по email
+    public User getUserEntityByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
-
 
     public UserDto updateUser(Long userId, User updatedUser) {
         User user = getUserEntityById(userId);
@@ -130,15 +127,12 @@ public class UserService {
             log.error("User not found with id={}", userId);
             return new EntityNotFoundException("User not found with id: " + userId);
         });
-        // Если аккаунт только Google (пароль пустой) — запрещаем смену
         if (user.getGoogleId() != null && (user.getPassword() == null || user.getPassword().isBlank())) {
             throw new ResponseStatusException(BAD_REQUEST, "Пароль нельзя изменить для Google-аккаунта");
         }
-        // Проверяем текущий пароль
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
             throw new ResponseStatusException(UNAUTHORIZED, "Текущий пароль неверен");
         }
-        // Простая политика: минимум 6 символов (как в регистрации)
         if (newPassword.length() < 6) {
             throw new ResponseStatusException(BAD_REQUEST, "Новый пароль должен быть не короче 6 символов");
         }
@@ -147,7 +141,6 @@ public class UserService {
         log.info("🔐 Password changed for userId={}", userId);
     }
 
-    // интерфейс / сервис
     public User updateProfile(Long userId, UpdateProfileRequest req) {
         User user = getUserEntityById(userId);
         if (req.getFirstName() != null) {

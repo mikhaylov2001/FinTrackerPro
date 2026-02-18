@@ -20,8 +20,9 @@ public class AuthRequest {
             example = "john_doe",
             required = true
     )
-    @NotBlank(message = "Username is required")
-    private String userName;
+    @Email(message = "Email должен быть валидным")
+    @NotBlank(message = "Email is required")
+    private String email;
     @Schema(
             description = "Пароль",
             example = "SecurePass123",
