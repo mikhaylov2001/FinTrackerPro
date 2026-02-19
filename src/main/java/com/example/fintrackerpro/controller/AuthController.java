@@ -38,8 +38,17 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request,
                                       HttpServletResponse response) {
-        User user = userService.registerUser(request);
-        return issueTokens(user, response, HttpStatus.CREATED);
+        try {
+            User user = userService.registerUser(request);
+            return issueTokens(user, response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            e.printStackTrace(); // в лог
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "Registration failed",
+                            "message", e.getMessage()
+                    ));
+        }
     }
 
     @PostMapping("/login")
