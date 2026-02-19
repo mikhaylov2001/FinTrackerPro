@@ -42,6 +42,8 @@ public class UserService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
+                .displayCurrency("RUB")
+                .hideAmounts(false)
                 .build();
 
         return userRepository.save(user);
