@@ -4,9 +4,12 @@ import com.example.fintrackerpro.entity.expense.Expense;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -55,5 +58,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Object[]> findUsedMonthsByUser(@Param("userId") Long userId);
 
     Optional<Expense> findByIdAndUserId(Long id, Long userId);
+
+
+    // Добавь в существующий ExpenseRepository
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Expense e WHERE e.user.id = :userId AND YEAR(e.date) = :year AND MONTH(e.date) = :month")
+    void deleteByUserIdAndYearAndMonth(
+            @Param("userId") Long userId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
 }
 

@@ -4,9 +4,12 @@ import com.example.fintrackerpro.entity.income.Income;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +58,15 @@ public interface IncomeRepository extends JpaRepository<Income, Long> {
 """, nativeQuery = true)
     List<Object[]> findUsedMonthsByUser(@Param("userId") Long userId);
 
+    // Добавь в существующий IncomeRepository
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Income i WHERE i.user.id = :userId AND YEAR(i.date) = :year AND MONTH(i.date) = :month")
+    void deleteByUserIdAndYearAndMonth(
+            @Param("userId") Long userId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
 
 
 }
