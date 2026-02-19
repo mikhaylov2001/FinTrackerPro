@@ -61,6 +61,14 @@ public class User extends UserDto {
     @Column(name = "last_name")
     private String lastName;
 
+
+    @Column(name = "display_currency", nullable = false)
+    private String displayCurrency = "RUB"; // RUB / USD / EUR ...
+
+    @Column(name = "hide_amounts", nullable = false)
+    private boolean hideAmounts = false;
+
+
     // Геттеры и сеттеры
     public String getGoogleId() {
         return googleId;
