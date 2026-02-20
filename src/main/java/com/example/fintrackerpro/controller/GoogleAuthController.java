@@ -8,6 +8,7 @@ import com.example.fintrackerpro.entity.user.UserDto;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.repository.UserRepository;
 import com.example.fintrackerpro.security.JwtUtil;
+import com.example.fintrackerpro.service.AuthTokenIssuer;
 import com.example.fintrackerpro.service.UserService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -18,9 +19,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -39,18 +42,20 @@ public class GoogleAuthController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-
+    private final AuthTokenIssuer authTokenIssuer;
     private final GoogleIdTokenVerifier verifier;
 
     public GoogleAuthController(
             UserService userService,
             JwtUtil jwtUtil,
+            AuthTokenIssuer authTokenIssuer,
             UserRepository userRepository,
             @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
     ) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+        this.authTokenIssuer = authTokenIssuer;
 
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
@@ -61,7 +66,8 @@ public class GoogleAuthController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request) {
+    public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request,
+                                        HttpServletResponse response) {
         try {
             if (request == null || request.getIdToken() == null || request.getIdToken().isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Google token is required"));
@@ -82,14 +88,12 @@ public class GoogleAuthController {
                 return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
             }
 
-            // Рекомендация: сначала искать по googleId (если вы храните его уникально)
             Optional<User> byEmail = userRepository.findByEmail(email);
 
             User user;
             if (byEmail.isPresent()) {
                 user = byEmail.get();
 
-                // Если уже привязан другой Google ID — лучше не перетирать
                 if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
                     return ResponseEntity.status(409).body(Map.of("error", "Account already linked to another Google ID"));
                 }
@@ -102,12 +106,8 @@ public class GoogleAuthController {
                 user = userService.registerUserViaGoogle(email, googleId, name);
             }
 
-            String token = jwtUtil.generateAccessToken((user.getId()));
-
-            return ResponseEntity.ok(new AuthResponse(
-                    token,
-                    new PublicUserDto(user.getId(), user.getUserName(), user.getEmail(), user.getFirstName(), user.getLastName())
-            ));
+            // ВАЖНО: выдаём и access, и refresh cookies
+            return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
@@ -119,9 +119,7 @@ public class GoogleAuthController {
 
     private GoogleIdToken.Payload verifyGoogleToken(String idToken) throws Exception {
         GoogleIdToken token = verifier.verify(idToken);
-        if (token == null) {
-            throw new IllegalArgumentException("Invalid ID token");
-        }
+        if (token == null) throw new IllegalArgumentException("Invalid ID token");
         return token.getPayload();
     }
 }
