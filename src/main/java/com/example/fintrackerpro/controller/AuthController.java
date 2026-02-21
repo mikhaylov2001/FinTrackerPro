@@ -1,27 +1,34 @@
 package com.example.fintrackerpro.controller;
 
 import com.example.fintrackerpro.dto.AuthRequest;
+import com.example.fintrackerpro.dto.GoogleTokenRequest;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
+import com.example.fintrackerpro.repository.UserRepository;
 import com.example.fintrackerpro.service.AuthTokenIssuer;
 import com.example.fintrackerpro.service.RefreshTokenService;
 import com.example.fintrackerpro.service.UserService;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 @Slf4j
 public class AuthController {
 
@@ -29,97 +36,116 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final AuthTokenIssuer authTokenIssuer;
+    private final UserRepository userRepository;
+    private final GoogleIdTokenVerifier verifier;
+
+    // Конструктор с внедрением Google Client ID
+    public AuthController(
+            UserService userService,
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService,
+            AuthTokenIssuer authTokenIssuer,
+            UserRepository userRepository,
+            @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
+    ) {
+        this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
+        this.authTokenIssuer = authTokenIssuer;
+        this.userRepository = userRepository;
+
+        this.verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(),
+                GsonFactory.getDefaultInstance()
+        )
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+    }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request,
-                                      HttpServletResponse response) {
+    public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request, HttpServletResponse response) {
         User user = userService.registerUser(request);
         return authTokenIssuer.issueTokens(user, response, HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request,
-                                   HttpServletResponse response) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
+        User user = userService.getUserEntityByEmail(request.getEmail());
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
+        }
+        return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request, HttpServletResponse response) {
         try {
-            User user = userService.getUserEntityByEmail(request.getEmail());
-            if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid credentials"));
+            if (request == null || request.getIdToken() == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Google token is required"));
             }
+
+            GoogleIdToken token = verifier.verify(request.getIdToken());
+            if (token == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid Google token"));
+            }
+
+            GoogleIdToken.Payload payload = token.getPayload();
+            String email = payload.getEmail();
+            String googleId = payload.getSubject();
+            String name = (String) payload.get("name");
+
+            Optional<User> byEmail = userRepository.findByEmail(email);
+            User user;
+
+            if (byEmail.isPresent()) {
+                user = byEmail.get();
+                if (user.getGoogleId() == null) {
+                    user.setGoogleId(googleId);
+                    userRepository.save(user);
+                }
+            } else {
+                user = userService.registerUserViaGoogle(email, googleId, name);
+            }
+
             return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid credentials"));
+            log.error("Google Auth Error", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Auth failed"));
         }
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
         Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            log.warn("Refresh attempt without cookies");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No cookies"));
-        }
-
         String refresh = getValue(cookies, "refreshToken");
         String refreshId = getValue(cookies, "refreshId");
 
         if (refresh == null || refreshId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Missing tokens"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No refresh token"));
         }
 
-        // Валидация и ротация в БД
         var stored = refreshTokenService.validateAndGet(refreshId, refresh);
-        if (stored == null) {
-            log.error("Invalid or expired refresh token for ID: {}", refreshId);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
-        }
+        if (stored == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid session"));
 
         User user = userService.getUserEntityById(stored.userId());
-        log.info("Refreshing tokens for user: {}", user.getEmail());
-
         return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            @CookieValue(name = "refreshId", required = false) String refreshId,
-            HttpServletResponse response
-    ) {
-        // 1. Если есть ID сессии, удаляем её из базы данных
-        if (refreshId != null) {
-            try {
-                refreshTokenService.revoke(refreshId);
-                log.info("Session revoked in DB for refreshId: {}", refreshId);
-            } catch (Exception e) {
-                log.warn("Could not revoke session in DB: {}", e.getMessage());
-            }
-        }
-
-        // 2. Стираем куки в браузере
+    public ResponseEntity<?> logout(@CookieValue(name = "refreshId", required = false) String refreshId, HttpServletResponse response) {
+        if (refreshId != null) refreshTokenService.revoke(refreshId);
         clearCookie(response, "refreshToken");
         clearCookie(response, "refreshId");
-
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+        return ResponseEntity.noContent().build();
     }
 
     private String getValue(Cookie[] cookies, String name) {
         if (cookies == null) return null;
-        return Arrays.stream(cookies)
-                .filter(c -> name.equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElse(null);
+        return Arrays.stream(cookies).filter(c -> name.equals(c.getName())).map(Cookie::getValue).findFirst().orElse(null);
     }
 
     private void clearCookie(HttpServletResponse response, String name) {
-        ResponseCookie cookie = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("None")
-                .build();
+        ResponseCookie cookie = ResponseCookie.from(name, "").httpOnly(true).secure(true).path("/").maxAge(0).sameSite("None").build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }
