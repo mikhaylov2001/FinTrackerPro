@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final UserService userService;
@@ -61,40 +63,58 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(HttpServletRequest request,
-                                     HttpServletResponse response) {
-        // достаём куки
-        String refresh = Arrays.stream(Optional.ofNullable(request.getCookies())
-                        .orElse(new Cookie[0]))
-                .filter(c -> "refreshToken".equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElse(null);
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            log.warn("Refresh attempt without cookies");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No cookies"));
+        }
 
-        String refreshId = Arrays.stream(Optional.ofNullable(request.getCookies())
-                        .orElse(new Cookie[0]))
-                .filter(c -> "refreshId".equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElse(null);
+        String refresh = getValue(cookies, "refreshToken");
+        String refreshId = getValue(cookies, "refreshId");
 
         if (refresh == null || refreshId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "No refresh token"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Missing tokens"));
         }
 
-        // валидация refresh в БД
+        // Валидация. Внутри validateAndGet убедись, что старый токен УДАЛЯЕТСЯ (ротация)
         var stored = refreshTokenService.validateAndGet(refreshId, refresh);
         if (stored == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid refresh token"));
+            log.error("Invalid or expired refresh token for ID: {}", refreshId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
         }
 
-        Long userId = stored.userId();
-        User user = userService.getUserEntityById(userId);
+        User user = userService.getUserEntityById(stored.userId());
+        log.info("Refreshing tokens for user: {}", user.getEmail());
 
-        // выдаём новый access + новый refresh (ротация)
+        // Выдаем новые токены
         return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
     }
 
+    private String getValue(Cookie[] cookies, String name) {
+        return Arrays.stream(cookies)
+                .filter(c -> name.equals(c.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        // Очищаем куки на стороне клиента при выходе
+        clearCookie(response, "refreshToken");
+        clearCookie(response, "refreshId");
+        return ResponseEntity.ok(Map.of("message", "Logged out"));
+    }
+
+    private void clearCookie(HttpServletResponse response, String name) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("None")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
 }
