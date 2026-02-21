@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -37,25 +38,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                Long userId = jwtUtil.extractUserId(token);
-                if (userId == null || jwtUtil.isExpired(token)) {
-                    unauthorized(response, "Invalid or expired token");
+                // 1. Проверяем валидность и срок действия
+                if (jwtUtil.isExpired(token)) {
+                    unauthorized(response, "Token has expired");
                     return;
                 }
 
-                var auth = new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of() // роли можно добавить позже
-                );
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                // 2. Извлекаем ID пользователя
+                Long userId = jwtUtil.extractUserId(token);
+
+                if (userId != null) {
+                    // 3. Создаем объект аутентификации.
+                    // Добавляем ROLE_USER, чтобы Spring Security пропускал запросы в .authenticated()
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                    );
+
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    // 4. Устанавливаем в контекст
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    log.debug("User {} authenticated via JWT", userId);
+                }
 
             } catch (JwtException e) {
-                unauthorized(response, "Invalid or expired token");
+                log.warn("JWT verification failed: {}", e.getMessage());
+                unauthorized(response, "Invalid token");
                 return;
             } catch (Exception e) {
-                log.error("JWT filter error", e);
+                log.error("Unexpected error in JWT filter", e);
                 unauthorized(response, "Authentication error");
                 return;
             }
@@ -66,7 +79,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) return header.substring(7);
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
         return null;
     }
 
@@ -74,16 +89,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        var json = builder().build().writeValueAsString(Map.of("error", msg));
+
+        // Используем ObjectMapper для формирования чистого JSON
+        var mapper = builder().build();
+        String json = mapper.writeValueAsString(Map.of(
+                "error", msg,
+                "status", 401,
+                "timestamp", System.currentTimeMillis()
+        ));
+
         response.getWriter().write(json);
     }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return "OPTIONS".equalsIgnoreCase(request.getMethod())
-                || path.startsWith("/api/auth")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/v3/api-docs");
-    }
+        String method = request.getMethod();
 
+        // Пропускаем OPTIONS запросы (CORS preflight) и публичные эндпоинты
+        return "OPTIONS".equalsIgnoreCase(method)
+                || path.startsWith("/api/auth/")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.equals("/api/auth/refresh"); // явно разрешаем рефреш
+    }
 }
