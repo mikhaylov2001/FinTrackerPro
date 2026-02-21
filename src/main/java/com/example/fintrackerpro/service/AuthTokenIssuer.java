@@ -3,6 +3,7 @@ package com.example.fintrackerpro.service;
 import com.example.fintrackerpro.dto.PublicUserDto;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.security.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -10,7 +11,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -34,20 +34,20 @@ public class AuthTokenIssuer {
 
         refreshTokenService.create(refreshId, user.getId(), refresh, refreshExp);
 
-        // После Vercel proxy (same-origin) можно поставить Lax.
-        // Если вдруг будешь снова ходить cross-site напрямую на Railway — верни None.
+        // Для Vercel(front) -> Railway(api) это cross-site cookie:
+        // SameSite=None + Secure обязательны, иначе cookie будет блокироваться браузером.
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refresh)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
-                .path("/") // проще и надёжнее
+                .sameSite("None")
+                .path("/") // можно "/api/auth", но "/" проще
                 .maxAge(refreshMs / 1000)
                 .build();
 
         ResponseCookie cookieId = ResponseCookie.from("refreshId", refreshId)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(refreshMs / 1000)
                 .build();

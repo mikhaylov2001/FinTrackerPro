@@ -29,18 +29,28 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // ВАЖНО:
-        // - Если allowCredentials=true (cookie refresh), origins должны быть явным списком (не "*") [web:5600]
-        // - Для bearer JWT (Authorization header) credentials обычно не нужны
+        // Важно: при allowCredentials=true нельзя "*", только явные origin'ы
+        // Добавь сюда ВСЕ домены, с которых реально ходит фронт (prod + preview).
         cfg.setAllowedOrigins(List.of(
                 "https://fintrackerpro.vercel.app"
-                // добавь сюда остальные реальные домены Vercel (preview) при необходимости
+                // пример: "https://fintrackerpro-git-main-xxxxx.vercel.app"
         ));
 
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        // Разрешаем нужные заголовки для JWT + обычных запросов
+        cfg.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With"
+        ));
+
+        // Если хочешь читать Authorization из ответа (обычно не нужно, т.к. ты отдаёшь token в JSON)
         cfg.setExposedHeaders(List.of("Authorization"));
-        cfg.setAllowCredentials(true); // поставь true, если используешь refresh в HttpOnly cookie
+
+        // Нужно, чтобы браузер мог отправлять refresh cookies
+        cfg.setAllowCredentials(true);
+
         cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
@@ -52,29 +62,23 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // ок для bearer JWT; для cookie-auth нужен CSRF [web:5078]
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Статика/главная
                         .requestMatchers(GET, "/", "/index.html", "/favicon.ico").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
 
-                        // Actuator минимум
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-
-                        // Swagger: в проде лучше закрыть или ограничить
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                        // Auth/public
                         .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers
-                                .contentTypeOptions(Customizer.withDefaults())
-                                .frameOptions(frame -> frame.deny())
-                        // При желании можно добавить CSP (особенно если отдаёшь фронт с бэка) [web:5593]
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(frame -> frame.deny())
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
