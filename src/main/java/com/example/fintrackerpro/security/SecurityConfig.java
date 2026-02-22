@@ -29,25 +29,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // 1. Домены
-        cfg.setAllowedOrigins(List.of(
-                "https://fintrackerpro.vercel.app",
-                "http://localhost:3000" // полезно для локальной отладки
-        ));
+        // МАГИЧЕСКАЯ ПУЛЯ: Разрешает любые домены, но работает с 쿠ками
+        cfg.setAllowedOriginPatterns(List.of("*"));
 
-        // 2. Методы
-        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-        // 3. Заголовки - РЕКОМЕНДУЮ разрешить все ("*"), если используешь Credentials
-        // Это снимет проблему 403, если браузер шлет специфический заголовок
+        // Разрешаем абсолютно все методы и заголовки
+        cfg.setAllowedMethods(List.of("*"));
         cfg.setAllowedHeaders(List.of("*"));
 
-        // 4. Экспозиция заголовков
-        cfg.setExposedHeaders(List.of("Set-Cookie", "Authorization"));
-
-        // 5. Важно для кук
         cfg.setAllowCredentials(true);
-
         cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
