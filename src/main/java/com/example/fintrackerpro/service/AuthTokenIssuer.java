@@ -40,18 +40,19 @@ public class AuthTokenIssuer {
         // 3. Создаем куки (SameSite=None + Secure для кросс-доменных запросов)
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refresh)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Lax")
+                .secure(true) // Обязательно true, Vercel работает через https
+                .sameSite("Lax") // КРИТИЧНО: для прокси используем Lax
                 .path("/")
-                .maxAge(refreshMs / 1000)
+                .maxAge(604800)// 7 дней в секундах
                 .build();
 
+// Аналогично для refreshId
         ResponseCookie cookieId = ResponseCookie.from("refreshId", refreshId)
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Lax")
                 .path("/")
-                .maxAge(refreshMs / 1000)
+                .maxAge(604800)
                 .build();
 
         // 4. Добавляем заголовки

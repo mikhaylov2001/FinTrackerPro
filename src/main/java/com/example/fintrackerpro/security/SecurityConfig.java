@@ -34,7 +34,7 @@ public class SecurityConfig {
         cfg.setAllowedOrigins(List.of("https://fintrackerpro.vercel.app"));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
-        cfg.setExposedHeaders(List.of("Set-Cookie")); // Позволяет браузеру видеть куки
+        cfg.setExposedHeaders(List.of("Set-Cookie", "Authorization")); // Позволяет браузеру видеть куки
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
 
