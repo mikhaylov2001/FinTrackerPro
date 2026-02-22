@@ -29,6 +29,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+// Явное указание CORS для контроллера — подстраховка к SecurityConfig
 @CrossOrigin(origins = {"https://fintrackerpro.vercel.app", "http://localhost:3000"}, allowCredentials = "true")
 @Slf4j
 public class AuthController {
@@ -40,7 +41,6 @@ public class AuthController {
     private final UserRepository userRepository;
     private final GoogleIdTokenVerifier verifier;
 
-    // Конструктор с внедрением Google Client ID
     public AuthController(
             UserService userService,
             PasswordEncoder passwordEncoder,
@@ -65,15 +65,19 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request, HttpServletResponse response) {
+        log.info("Registration attempt for email: {}", request.getEmail());
         User user = userService.registerUser(request);
         return authTokenIssuer.issueTokens(user, response, HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
+        log.info("Login attempt for email: {}", request.getEmail());
         User user = userService.getUserEntityByEmail(request.getEmail());
+
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid credentials"));
         }
         return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
     }
@@ -122,31 +126,55 @@ public class AuthController {
         String refreshId = getValue(cookies, "refreshId");
 
         if (refresh == null || refreshId == null) {
+            log.warn("Refresh attempt without cookies");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No refresh token"));
         }
 
         var stored = refreshTokenService.validateAndGet(refreshId, refresh);
-        if (stored == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid session"));
+        if (stored == null) {
+            log.warn("Invalid refresh session for ID: {}", refreshId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid session"));
+        }
 
         User user = userService.getUserEntityById(stored.userId());
         return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@CookieValue(name = "refreshId", required = false) String refreshId, HttpServletResponse response) {
-        if (refreshId != null) refreshTokenService.revoke(refreshId);
+    public ResponseEntity<?> logout(
+            @CookieValue(name = "refreshId", required = false) String refreshId,
+            HttpServletResponse response
+    ) {
+        log.info("Logout requested for refreshId: {}", refreshId);
+        if (refreshId != null) {
+            refreshTokenService.revoke(refreshId);
+        }
+
+        // Очищаем обе куки
         clearCookie(response, "refreshToken");
         clearCookie(response, "refreshId");
+
         return ResponseEntity.noContent().build();
     }
 
     private String getValue(Cookie[] cookies, String name) {
         if (cookies == null) return null;
-        return Arrays.stream(cookies).filter(c -> name.equals(c.getName())).map(Cookie::getValue).findFirst().orElse(null);
+        return Arrays.stream(cookies)
+                .filter(c -> name.equals(c.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
 
     private void clearCookie(HttpServletResponse response, String name) {
-        ResponseCookie cookie = ResponseCookie.from(name, "").httpOnly(true).secure(true).path("/").maxAge(0).sameSite("None").build();
+        // Важно: параметры (path, secure, sameSite) должны совпадать с теми, что были при создании
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0) // Удаляет куку немедленно
+                .sameSite("None")
+                .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }
