@@ -173,7 +173,7 @@ public class AuthController {
                 .secure(true)
                 .path("/")
                 .maxAge(0) // Удаляет куку немедленно
-                .sameSite("None")
+                .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
