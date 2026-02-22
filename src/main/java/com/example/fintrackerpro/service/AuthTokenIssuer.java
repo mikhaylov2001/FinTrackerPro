@@ -31,13 +31,14 @@ public class AuthTokenIssuer {
 
         refreshTokenService.create(refreshId, user.getId(), refresh, refreshExp);
 
-        // 7 дней в секундах для браузера
+        // 7 дней в секундах
         long maxAgeSec = refreshMs / 1000;
 
+        // ВАЖНО: SameSite=Lax + Path=/ + Secure
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refresh)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax") // Для работы через прокси
+                .sameSite("Lax")
                 .path("/")
                 .maxAge(maxAgeSec)
                 .build();
@@ -53,14 +54,10 @@ public class AuthTokenIssuer {
         resp.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         resp.addHeader(HttpHeaders.SET_COOKIE, cookieId.toString());
 
-        // Исправление Cross-Origin ошибок для Safari
+        // Заголовки для Safari и исправления Cross-Origin
         resp.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-        resp.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-
-        // Защита от кэширования
-        resp.setHeader(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0");
-        resp.setHeader(HttpHeaders.PRAGMA, "no-cache");
         resp.setHeader("Vary", "Origin");
+        resp.setHeader(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0");
 
         return ResponseEntity.status(status).body(Map.of(
                 "token", access,
