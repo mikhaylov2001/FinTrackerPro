@@ -29,6 +29,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = {"https://fintrackerpro.vercel.app", "http://localhost:3000"}, allowCredentials = "true")
 @Slf4j
 public class AuthController {
 

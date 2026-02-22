@@ -29,13 +29,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // МАГИЧЕСКАЯ ПУЛЯ: Разрешает любые домены, но работает с 쿠ками
-        cfg.setAllowedOriginPatterns(List.of("*"));
-
-        // Разрешаем абсолютно все методы и заголовки
-        cfg.setAllowedMethods(List.of("*"));
+        cfg.setAllowedOrigins(List.of(
+                "https://fintrackerpro.vercel.app",
+                "http://localhost:3000"
+        ));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
 

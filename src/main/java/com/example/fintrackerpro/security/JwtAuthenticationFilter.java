@@ -34,43 +34,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String path = request.getRequestURI();
         String token = extractToken(request);
+
+        // Если это путь авторизации, просто идем дальше, не трогая токены вообще
+        if (path.contains("/api/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                // 1. Проверяем валидность и срок действия
-                if (jwtUtil.isExpired(token)) {
-                    unauthorized(response, "Token has expired");
-                    return;
-                }
-
-                // 2. Извлекаем ID пользователя
                 Long userId = jwtUtil.extractUserId(token);
-
-                if (userId != null) {
-                    // 3. Создаем объект аутентификации.
-                    // Добавляем ROLE_USER, чтобы Spring Security пропускал запросы в .authenticated()
-                    var auth = new UsernamePasswordAuthenticationToken(
-                            userId,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-
+                if (userId != null && !jwtUtil.isExpired(token)) {
+                    var auth = new UsernamePasswordAuthenticationToken(userId, null, List.of());
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    // 4. Устанавливаем в контекст
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                    log.debug("User {} authenticated via JWT", userId);
                 }
-
-            } catch (JwtException e) {
-                log.warn("JWT verification failed: {}", e.getMessage());
-                unauthorized(response, "Invalid token");
-                return;
             } catch (Exception e) {
-                log.error("Unexpected error in JWT filter", e);
-                unauthorized(response, "Authentication error");
-                return;
+                // Если токен битый (например, после смены секрета),
+                // мы НЕ кидаем 403 сразу, а просто идем дальше.
+                // SecurityConfig сам заблокирует доступ к защищенным путям.
+                log.error("JWT validation failed: {}", e.getMessage());
             }
         }
 
