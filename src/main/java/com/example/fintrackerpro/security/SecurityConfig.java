@@ -30,17 +30,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        // Убедитесь, что здесь НЕТ лишних слешей в конце
-        cfg.setAllowedOrigins(List.of("https://fintrackerpro.vercel.app"));
-        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
-        cfg.setExposedHeaders(List.of("Set-Cookie", "Authorization")); // Позволяет браузеру видеть куки
-        cfg.setAllowCredentials(true);
-        cfg.setMaxAge(3600L);
+        cfg.setAllowedOrigins(List.of("https://fintrackerpro.vercel.app", "http://localhost:3000"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true); // ОБЯЗАТЕЛЬНО для кук
+        cfg.setExposedHeaders(List.of("Set-Cookie", "Cross-Origin-Opener-Policy"));
 
-        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
-        src.registerCorsConfiguration("/**", cfg);
-        return src;
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", cfg);
+        return source;
     }
 
     @Bean
