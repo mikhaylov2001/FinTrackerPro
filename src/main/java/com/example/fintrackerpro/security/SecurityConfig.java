@@ -29,26 +29,23 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // Важно: при allowCredentials=true нельзя "*", только явные origin'ы
-        // Добавь сюда ВСЕ домены, с которых реально ходит фронт (prod + preview).
+        // 1. Домены
         cfg.setAllowedOrigins(List.of(
-                "https://fintrackerpro.vercel.app"
-                // пример: "https://fintrackerpro-git-main-xxxxx.vercel.app"
+                "https://fintrackerpro.vercel.app",
+                "http://localhost:3000" // полезно для локальной отладки
         ));
 
+        // 2. Методы
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
-        // Разрешаем нужные заголовки для JWT + обычных запросов
-        cfg.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With"
-        ));
+        // 3. Заголовки - РЕКОМЕНДУЮ разрешить все ("*"), если используешь Credentials
+        // Это снимет проблему 403, если браузер шлет специфический заголовок
+        cfg.setAllowedHeaders(List.of("*"));
 
-        // Если хочешь читать Authorization из ответа (обычно не нужно, т.к. ты отдаёшь token в JSON)
-        cfg.setExposedHeaders(List.of("Authorization"));
+        // 4. Экспозиция заголовков
+        cfg.setExposedHeaders(List.of("Set-Cookie", "Authorization"));
 
-        // Нужно, чтобы браузер мог отправлять refresh cookies
+        // 5. Важно для кук
         cfg.setAllowCredentials(true);
 
         cfg.setMaxAge(3600L);

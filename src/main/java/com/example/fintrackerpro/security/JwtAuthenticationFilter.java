@@ -106,11 +106,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        // Пропускаем OPTIONS запросы (CORS preflight) и публичные эндпоинты
-        return "OPTIONS".equalsIgnoreCase(method)
-                || path.startsWith("/api/auth/")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/v3/api-docs")
-                || path.equals("/api/auth/refresh"); // явно разрешаем рефреш
+        // 1. Пропускаем все OPTIONS запросы (CORS Preflight)
+        if ("OPTIONS".equalsIgnoreCase(method)) return true;
+
+        // 2. КРИТИЧЕСКОЕ: Пропускаем все, что связано с авторизацией
+        // Добавь проверку на /api/auth без жесткой привязки к слешу в конце
+        if (path.startsWith("/api/auth")) return true;
+
+        // 3. Пропускаем Swagger
+        if (path.contains("/swagger-ui") || path.contains("/v3/api-docs")) return true;
+
+        return false;
     }
 }
