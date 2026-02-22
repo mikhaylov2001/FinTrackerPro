@@ -171,9 +171,9 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(name, "")
                 .httpOnly(true)
                 .secure(true)
+                .sameSite("Lax")
                 .path("/")
                 .maxAge(0) // Удаляет куку немедленно
-                .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
