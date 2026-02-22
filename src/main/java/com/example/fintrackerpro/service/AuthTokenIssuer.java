@@ -49,7 +49,7 @@ public class AuthTokenIssuer {
         ResponseCookie cookieId = ResponseCookie.from("refreshId", refreshId)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .path("/")
                 .maxAge(refreshMs / 1000)
                 .build();

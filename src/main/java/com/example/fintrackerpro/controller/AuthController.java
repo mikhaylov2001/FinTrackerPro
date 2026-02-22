@@ -30,7 +30,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 // Явное указание CORS для контроллера — подстраховка к SecurityConfig
-@CrossOrigin(origins = {"https://fintrackerpro.vercel.app", "http://localhost:3000"}, allowCredentials = "true")
+@CrossOrigin(origins = {"https://fintrackerpro.vercel.app"}, allowCredentials = "true")
 @Slf4j
 public class AuthController {
 
