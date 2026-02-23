@@ -14,14 +14,22 @@ public class MetricsService {
 
   public MetricsService(MeterRegistry registry) {
     this.registrationCounter =
-        registry.counter("fintracker_user_registrations_total");
+            registry.counter("fintracker_user_registrations_total",
+                    "service", "fintracker-api", "env", "prod");
+
     this.loginSuccessCounter =
-        registry.counter("fintracker_logins_total", "status", "success");
+            registry.counter("fintracker_logins_total",
+                    "status", "success", "service", "fintracker-api", "env", "prod");
+
     this.loginFailureCounter =
-        registry.counter("fintracker_logins_total", "status", "failure");
+            registry.counter("fintracker_logins_total",
+                    "status", "failure", "service", "fintracker-api", "env", "prod");
+
     this.businessErrorCounter =
-        registry.counter("fintracker_errors_total", "type", "business");
+            registry.counter("fintracker_errors_total",
+                    "type", "business", "service", "fintracker-api", "env", "prod");
   }
+
 
   public void incRegistration() { registrationCounter.increment(); }
 
@@ -30,4 +38,8 @@ public class MetricsService {
   public void incLoginFailure() { loginFailureCounter.increment(); }
 
   public void incBusinessError() { businessErrorCounter.increment(); }
+
+
 }
+
+

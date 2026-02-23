@@ -2,8 +2,11 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'fintracker-prod'
+  - job_name: 'fintracker-api-prod'
     metrics_path: /actuator/prometheus
     scheme: https
     static_configs:
       - targets: ['fintrackerpro-production.up.railway.app']
+        labels:
+          service: 'fintracker-api'
+          env: 'prod'
