@@ -64,3 +64,4 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
