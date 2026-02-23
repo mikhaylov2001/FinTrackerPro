@@ -2,7 +2,8 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'fintracker-local'
+  - job_name: 'fintracker-prod'
     metrics_path: /actuator/prometheus
+    scheme: https
     static_configs:
-      - targets: ['host.docker.internal:8082']
+      - targets: ['fintrackerpro-production.up.railway.app']

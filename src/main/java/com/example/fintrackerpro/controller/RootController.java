@@ -19,14 +19,13 @@ public class RootController {
   @GetMapping("/")
   public String index(Model model) {
     long usersTotal = userRepository.count();
-
     var health = healthEndpoint.health();
     var info = infoEndpoint.info();
 
     model.addAttribute("status", health.getStatus().getCode());
     model.addAttribute("usersTotal", usersTotal);
     model.addAttribute("info", info);
-
-    return "index"; // templates/index.html
+    return "index";
   }
+
 }

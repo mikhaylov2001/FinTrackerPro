@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="utf-8"/>
+    <meta charset="UTF-8"/>
     <title>FinTrackerPro API</title>
     <style>
         body {
@@ -83,6 +83,14 @@
             margin-bottom: 4px;
             color: #9ca3af;
         }
+        .info-block {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #9ca3af;
+        }
+        .info-block code {
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -92,22 +100,17 @@
 </div>
 
 <div class="status">
-    <div class="dot" th:classappend="${status} == 'UP' ? ' dot-up' : ' dot-down'"></div>
-    <span th:text="${status} == 'UP' ? 'Работает' : 'Проблемы'">Работает</span>
+    <div class="dot"
+         th:classappend="${status} == 'UP' ? ' dot-up' : ' dot-down'"></div>
+    <span th:text="${status} == 'UP' ? 'Работает' : 'Проблемы'">Статус</span>
+    <span style="opacity: .7; font-size: 12px; margin-left: 4px;"
+          th:text="'(' + ${status} + ')'">(UNKNOWN)</span>
 </div>
 
 <div class="cards">
     <div class="card">
         <div class="card-title">Всего пользователей</div>
         <div class="card-value" th:text="${usersTotal}">0</div>
-    </div>
-
-    <div class="card">
-        <div class="card-title">Версия приложения</div>
-        <div class="card-value"
-             th:text="${info.app != null ? info.app.version : 'n/a'}">
-            n/a
-        </div>
     </div>
 </div>
 
@@ -116,7 +119,13 @@
     <li><a href="/actuator/health">/actuator/health</a></li>
     <li><a href="/actuator/prometheus">/actuator/prometheus</a></li>
     <li><a href="/swagger-ui.html">/swagger-ui.html</a></li>
+    <li><a href="/status">/status (JSON статус, если оставишь контроллер)</a></li>
 </ul>
+
+<div class="info-block">
+    <div>Информация о сборке/окружении (Actuator <code>/info</code>):</div>
+    <pre th:text="${#objects.toString(info)}">info</pre>
+</div>
 
 </body>
 </html>
