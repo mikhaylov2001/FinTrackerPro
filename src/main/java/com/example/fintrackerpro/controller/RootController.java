@@ -25,7 +25,7 @@ public class RootController {
     model.addAttribute("status", health.getStatus().getCode());
     model.addAttribute("usersTotal", usersTotal);
     model.addAttribute("info", info);
-    return "index";
-  }
 
+    return "index"; // имя шаблона: templates/index.html
+  }
 }
