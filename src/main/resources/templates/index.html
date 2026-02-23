@@ -187,10 +187,13 @@
 
         <div class="card">
             <div class="card-inner">
-                <div class="card-title">Время сервера (UTC)</div>
-                <div class="card-value" th:text="${serverTime}">2026-01-01T00:00:00Z</div>
+                <div class="card-title">Время сервера (Москва)</div>
+                <div class="card-value">
+                    <span th:text="${serverTime}">15:31:10</span>
+                </div>
                 <div class="card-hint">
-                    Значение обновляется при каждом запросе страницы
+                    Дата: <span th:text="${serverDate}">23.02.2026</span>,
+                    часовой пояс: <span th:text="${serverZone}">Europe/Moscow</span>
                 </div>
             </div>
         </div>
