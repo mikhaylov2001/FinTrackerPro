@@ -8,6 +8,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
+
 @Controller
 @RequiredArgsConstructor
 public class RootController {
@@ -22,9 +26,28 @@ public class RootController {
     var health = healthEndpoint.health();
     var info = infoEndpoint.info();
 
-    model.addAttribute("status", health.getStatus().getCode());
+    String status = health.getStatus().getCode();
+
+    // Пытаемся достать версию из info.app.version (если прописана в application.yml)
+    String version = null;
+    if (info != null) {
+      Object app = info.get("app");
+      if (app instanceof Map<?, ?> appMap) {
+        Object v = appMap.get("version");
+        if (v != null) {
+          version = v.toString();
+        }
+      }
+    }
+
+    String serverTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
+
+    model.addAttribute("status", status);
     model.addAttribute("usersTotal", usersTotal);
     model.addAttribute("info", info);
+    model.addAttribute("version", version);
+    model.addAttribute("serverTime", serverTime);
+
     return "index";
   }
 }

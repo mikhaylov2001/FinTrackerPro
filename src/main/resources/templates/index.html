@@ -4,12 +4,8 @@
     <meta charset="UTF-8"/>
     <title>FinTrackerPro API</title>
     <style>
-        :root {
-            color-scheme: dark;
-        }
-        * {
-            box-sizing: border-box;
-        }
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background: radial-gradient(circle at top left, #1d2433 0, #020617 45%, #020617 100%);
@@ -17,10 +13,7 @@
             margin: 0;
             padding: 32px 24px 40px;
         }
-        .page {
-            max-width: 960px;
-            margin: 0 auto;
-        }
+        .page { max-width: 960px; margin: 0 auto; }
         h1 {
             margin: 0 0 8px;
             font-size: 32px;
@@ -89,10 +82,7 @@
             opacity: 0.9;
             pointer-events: none;
         }
-        .card-inner {
-            position: relative;
-            z-index: 1;
-        }
+        .card-inner { position: relative; z-index: 1; }
         .card-title {
             font-size: 11px;
             text-transform: uppercase;
@@ -101,8 +91,9 @@
             margin-bottom: 6px;
         }
         .card-value {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
+            word-break: break-all;
         }
         .card-hint {
             margin-top: 4px;
@@ -137,9 +128,7 @@
             color: #38bdf8;
             text-decoration: none;
         }
-        a:hover {
-            text-decoration: underline;
-        }
+        a:hover { text-decoration: underline; }
         .footer {
             margin-top: 18px;
             font-size: 11px;
@@ -149,16 +138,10 @@
             gap: 8px;
             flex-wrap: wrap;
         }
-        .footer code {
-            font-size: 11px;
-        }
+        .footer code { font-size: 11px; }
         @media (max-width: 640px) {
-            body {
-                padding: 20px 16px 28px;
-            }
-            h1 {
-                font-size: 26px;
-            }
+            body { padding: 20px 16px 28px; }
+            h1 { font-size: 26px; }
         }
     </style>
 </head>
@@ -173,7 +156,8 @@
         </div>
 
         <div class="status-chip">
-            <div class="dot" th:classappend="${status} == 'UP' ? ' dot-up' : ' dot-down'"></div>
+            <div class="dot"
+                 th:classappend="${status} == 'UP' ? ' dot-up' : ' dot-down'"></div>
             <span th:text="${status} == 'UP' ? 'Работает' : 'Проблемы'">Статус</span>
             <span class="secondary" th:text="'(' + ${status} + ')'">(UNKNOWN)</span>
         </div>
@@ -190,12 +174,23 @@
 
         <div class="card">
             <div class="card-inner">
-                <div class="card-title">Actuator</div>
-                <div class="card-value" th:text="${status} == 'UP' ? 'Здоров' : 'Есть проблемы'">
-                    Здоров
+                <div class="card-title">Версия сервиса</div>
+                <div class="card-value"
+                     th:text="${version} != null ? ${version} : 'не указана'">
+                    не указана
                 </div>
                 <div class="card-hint">
-                    Детали смотри в <code>/actuator/health</code> и <code>/actuator/info</code>
+                    Берётся из <code>info.app.version</code> (Actuator <code>/info</code>)
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-inner">
+                <div class="card-title">Время сервера (UTC)</div>
+                <div class="card-value" th:text="${serverTime}">2026-01-01T00:00:00Z</div>
+                <div class="card-hint">
+                    Значение обновляется при каждом запросе страницы
                 </div>
             </div>
         </div>
@@ -212,7 +207,7 @@
     </div>
 
     <div class="footer">
-        <div>Режим чтения: только основные показатели, остальные детали в метриках и логах.</div>
+        <div>Режим чтения: основные показатели live, детали — в метриках и логах.</div>
         <div>Источник данных: <code>HealthEndpoint</code>, <code>InfoEndpoint</code>, <code>UserRepository</code>.</div>
     </div>
 </div>
