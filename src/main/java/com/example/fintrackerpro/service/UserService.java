@@ -28,6 +28,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MetricsService metricsService;
 
     // РЕГИСТРАЦИЯ: firstName + lastName + email + password
     public User registerUser(UserRegistrationRequest request) {
@@ -47,7 +48,11 @@ public class UserService {
                 .hideAmounts(false)
                 .build();
 
-        return userRepository.save(user);
+
+        User save = userRepository.save(user);
+        metricsService.incRegistration();
+        log.info("👤 New user registered: {}", save.getEmail());
+        return save;
     }
 
     public User getUserEntityById(Long userId) {
@@ -107,7 +112,7 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
         log.info("✅ User saved: id={}, userName={}", savedUser.getId(), savedUser.getUserName());
-
+        metricsService.incRegistration();
         return savedUser;
     }
 

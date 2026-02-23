@@ -3,6 +3,7 @@ package com.example.fintrackerpro.controller;
 
 import com.example.fintrackerpro.entity.user.UserSettingsDto;
 import com.example.fintrackerpro.security.CurrentUser;
+import com.example.fintrackerpro.service.MetricsService;
 import com.example.fintrackerpro.service.UserSettingsService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserSettingsController {
 
     private final UserSettingsService userSettingsService;
+    private final MetricsService metricsService;
 
     @GetMapping("/me")
     public ResponseEntity<UserSettingsDto> getMySettings(Authentication auth) {

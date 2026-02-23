@@ -6,6 +6,7 @@ import com.example.fintrackerpro.dto.UpdateProfileRequest;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.security.CurrentUser;
 import com.example.fintrackerpro.service.AuthTokenIssuer;
+import com.example.fintrackerpro.service.MetricsService;
 import com.example.fintrackerpro.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -33,6 +34,7 @@ public class AccountController {
 
     private final UserService userService;
     private final AuthTokenIssuer authTokenIssuer;
+    private final MetricsService metricsService;
 
     @Operation(summary = "Сменить пароль текущего пользователя")
     @ApiResponses(value = {
@@ -87,10 +89,19 @@ public class AccountController {
         Long userId = CurrentUser.id(auth);
         log.info("📧 PUT /api/account/email (userId={})", userId);
 
-        // Обновляем email в БД (проверяется пароль)
-        User updated = userService.changeEmail(userId, req.getNewEmail(), req.getPassword());
+        try {
+            // Обновляем email в БД (внутри userService.changeEmail проверяется пароль)
+            User updated = userService.changeEmail(userId, req.getNewEmail(), req.getPassword());
 
-        // Переиздаём токены
-        return authTokenIssuer.issueTokens(updated, response, HttpStatus.OK);
+            // Если всё успешно, переиздаём токены
+            return authTokenIssuer.issueTokens(updated, response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            // Если возникла ошибка (неверный пароль или email занят) — фиксируем бизнес-ошибку
+            metricsService.incBusinessError();
+
+            // Пробрасываем ошибку дальше, чтобы Spring обработал её и вернул нужный HTTP статус
+            throw e;
+        }
     }
 }

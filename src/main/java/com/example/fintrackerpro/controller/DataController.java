@@ -2,6 +2,7 @@ package com.example.fintrackerpro.controller;
 
 import com.example.fintrackerpro.security.CurrentUser;
 import com.example.fintrackerpro.service.DataService;
+import com.example.fintrackerpro.service.MetricsService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class DataController {
 
     private final DataService dataService;
+    private final MetricsService metricsService;
 
     /**
      * DELETE /api/data/me/month/{year}/{month}?type=income|expenses|all
@@ -44,6 +46,7 @@ public class DataController {
                 "type", type
             ));
         } catch (IllegalArgumentException e) {
+            metricsService.incBusinessError();
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

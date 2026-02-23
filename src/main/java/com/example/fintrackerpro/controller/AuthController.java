@@ -6,6 +6,7 @@ import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.repository.UserRepository;
 import com.example.fintrackerpro.service.AuthTokenIssuer;
+import com.example.fintrackerpro.service.MetricsService;
 import com.example.fintrackerpro.service.RefreshTokenService;
 import com.example.fintrackerpro.service.UserService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -40,6 +41,7 @@ public class AuthController {
     private final AuthTokenIssuer authTokenIssuer;
     private final UserRepository userRepository;
     private final GoogleIdTokenVerifier verifier;
+    private final MetricsService metricsService;
 
     public AuthController(
             UserService userService,
@@ -47,6 +49,7 @@ public class AuthController {
             RefreshTokenService refreshTokenService,
             AuthTokenIssuer authTokenIssuer,
             UserRepository userRepository,
+            MetricsService metricsService,
             @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
     ) {
         this.userService = userService;
@@ -54,6 +57,7 @@ public class AuthController {
         this.refreshTokenService = refreshTokenService;
         this.authTokenIssuer = authTokenIssuer;
         this.userRepository = userRepository;
+        this.metricsService = metricsService;
 
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
@@ -66,20 +70,40 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request, HttpServletResponse response) {
         log.info("Registration attempt for email: {}", request.getEmail());
-        User user = userService.registerUser(request);
-        return authTokenIssuer.issueTokens(user, response, HttpStatus.CREATED);
-    }
 
+        try {
+            User user = userService.registerUser(request);
+
+            // Успешная регистрация — зажигаем лампочку на мониторе!
+            metricsService.incRegistration();
+
+            return authTokenIssuer.issueTokens(user, response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            // Если регистрация провалилась (например, email занят) — фиксируем бизнес-ошибку
+            metricsService.incBusinessError();
+            throw e; // Пробрасываем ошибку дальше, чтобы Spring вернул правильный статус
+        }
+    }
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
         log.info("Login attempt for email: {}", request.getEmail());
-        User user = userService.getUserEntityByEmail(request.getEmail());
 
-        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid credentials"));
+        try {
+            User user = userService.getUserEntityByEmail(request.getEmail());
+
+            if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                metricsService.incLoginFailure(); // <--- ГРАФИК "ОШИБКИ ВХОДА" ОЖИВЕТ
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Invalid credentials"));
+            }
+
+            metricsService.incLoginSuccess(); // <--- ГРАФИК "ПРОЦЕНТ УСПЕШНЫХ ЛОГИНОВ" ПОЙДЕТ ВВЕРХ
+            return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            metricsService.incLoginFailure(); // <--- ЛЮБАЯ ОШИБКА ПРИ ВХОДЕ ИДЕТ В СТАТИСТИКУ
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Auth failed"));
         }
-        return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
     }
 
     @PostMapping("/google")
