@@ -47,22 +47,33 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                // ВАЖНО: Обработка ошибок, чтобы фронт видел 401, а не 403
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Full authentication is required to access this resource\"}");
+                            response.getWriter().write(
+                                    "{\"error\": \"Unauthorized\", \"message\": \"Full authentication is required to access this resource\"}"
+                            );
                         })
                 )
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(GET, "/", "/index.html", "/favicon.ico").permitAll()
+                        // Публичные страницы и статика
+                        .requestMatchers(GET, "/", "/index", "/index.html", "/favicon.ico").permitAll()
+                        .requestMatchers("/status").permitAll() // если хочешь JSON статус без авторизации
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+                        .requestMatchers("/error").permitAll()
+
+                        // Actuator (можно оставить открытыми, как сейчас)
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
+                        // Swagger / открытые API
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
+
+                        // preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers
