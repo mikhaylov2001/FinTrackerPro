@@ -65,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
 
                         // Actuator (можно оставить открытыми, как сейчас)
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
 
                         // Swagger / открытые API
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
