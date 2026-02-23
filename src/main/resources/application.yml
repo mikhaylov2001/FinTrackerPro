@@ -68,3 +68,9 @@ management:
       enabled: true
     os:
       enabled: true
+
+
+info:
+  app:
+    name: FinTrackerPro
+    version: 0.0.1-SNAPSHOT
