@@ -3,12 +3,218 @@
 <head>
     <meta charset="UTF-8"/>
     <title>FinTrackerPro API</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top left, #1d2433 0, #020617 45%, #020617 100%);
+            color: #e5e7eb;
+            margin: 0;
+            padding: 32px 24px 40px;
+        }
+        .page {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: 32px;
+            letter-spacing: 0.04em;
+        }
+        .subtitle {
+            color: #9ca3af;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: rgba(15,23,42,0.9);
+            border: 1px solid rgba(148,163,184,0.35);
+            box-shadow: 0 0 0 1px rgba(15,23,42,0.9);
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+        }
+        .dot-up {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34,197,94,0.7);
+        }
+        .dot-down {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239,68,68,0.7);
+        }
+        .status-chip span.secondary {
+            opacity: .7;
+            font-size: 11px;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .card {
+            padding: 16px 18px;
+            border-radius: 14px;
+            background: radial-gradient(circle at top left, #1e293b 0, #020617 55%);
+            border: 1px solid #1f2937;
+            box-shadow: 0 18px 45px rgba(15,23,42,0.7);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(56,189,248,0.20), transparent 55%);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        .card-inner {
+            position: relative;
+            z-index: 1;
+        }
+        .card-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #9ca3af;
+            margin-bottom: 6px;
+        }
+        .card-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .card-hint {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #9ca3af;
+            opacity: .85;
+        }
+        .links-block {
+            margin-top: 10px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(15,23,42,0.9);
+            border: 1px solid rgba(31,41,55,0.9);
+        }
+        .links-title {
+            margin: 0 0 6px;
+            color: #9ca3af;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+        }
+        ul.links {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        ul.links li {
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        a {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            margin-top: 18px;
+            font-size: 11px;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .footer code {
+            font-size: 11px;
+        }
+        @media (max-width: 640px) {
+            body {
+                padding: 20px 16px 28px;
+            }
+            h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
 </head>
 <body>
-<h1>FinTrackerPro API</h1>
+<div class="page">
+    <div class="header-row">
+        <div>
+            <h1>FinTrackerPro API</h1>
+            <div class="subtitle">
+                Мини‑монитор здоровья backend‑сервиса и пользовательской базы
+            </div>
+        </div>
 
-<p>Статус: <span th:text="${status}">UNKNOWN</span></p>
-<p>Всего пользователей: <span th:text="${usersTotal}">0</span></p>
+        <div class="status-chip">
+            <div class="dot" th:classappend="${status} == 'UP' ? ' dot-up' : ' dot-down'"></div>
+            <span th:text="${status} == 'UP' ? 'Работает' : 'Проблемы'">Статус</span>
+            <span class="secondary" th:text="'(' + ${status} + ')'">(UNKNOWN)</span>
+        </div>
+    </div>
 
+    <div class="cards">
+        <div class="card">
+            <div class="card-inner">
+                <div class="card-title">Всего пользователей</div>
+                <div class="card-value" th:text="${usersTotal}">0</div>
+                <div class="card-hint">Суммарное количество зарегистрированных аккаунтов</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-inner">
+                <div class="card-title">Actuator</div>
+                <div class="card-value" th:text="${status} == 'UP' ? 'Здоров' : 'Есть проблемы'">
+                    Здоров
+                </div>
+                <div class="card-hint">
+                    Детали смотри в <code>/actuator/health</code> и <code>/actuator/info</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="links-block">
+        <p class="links-title">Полезные эндпоинты</p>
+        <ul class="links">
+            <li><a href="/status">/status</a> — компактный JSON‑статус сервиса</li>
+            <li><a href="/actuator/health">/actuator/health</a> — техническое состояние</li>
+            <li><a href="/actuator/prometheus">/actuator/prometheus</a> — метрики для Prometheus/Grafana</li>
+            <li><a href="/swagger-ui.html">/swagger-ui.html</a> — Swagger UI по API</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <div>Режим чтения: только основные показатели, остальные детали в метриках и логах.</div>
+        <div>Источник данных: <code>HealthEndpoint</code>, <code>InfoEndpoint</code>, <code>UserRepository</code>.</div>
+    </div>
+</div>
 </body>
 </html>
