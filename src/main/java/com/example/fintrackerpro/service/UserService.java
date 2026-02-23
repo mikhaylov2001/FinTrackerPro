@@ -10,6 +10,7 @@ import com.example.fintrackerpro.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -118,7 +119,7 @@ public class UserService {
         );
     }
 
-    public void changePassword(Long userId , String currentPassword, String newPassword){
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
         User user = userRepository.findById(userId).orElseThrow(() -> {
             log.error("User not found with id={}", userId);
             return new EntityNotFoundException("User not found with id: " + userId);
@@ -150,11 +151,13 @@ public class UserService {
 
     public User changeEmail(Long userId, String newEmail, String password) {
         User user = getUserEntityById(userId);
+
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("Invalid password");
+            // ✅ неверный пароль -> 401 (или 400, но 401 логичнее)
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверный пароль");
         }
+
         user.setEmail(newEmail);
         return userRepository.save(user);
     }
-
 }
