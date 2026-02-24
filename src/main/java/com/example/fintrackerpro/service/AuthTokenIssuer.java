@@ -38,7 +38,7 @@ public class AuthTokenIssuer {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refresh)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(maxAgeSec)
                 .build();
@@ -46,7 +46,7 @@ public class AuthTokenIssuer {
         ResponseCookie cookieId = ResponseCookie.from("refreshId", refreshId)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(maxAgeSec)
                 .build();

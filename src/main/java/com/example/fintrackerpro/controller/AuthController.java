@@ -195,7 +195,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(name, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(0) // Удаляет куку немедленно
                 .build();
