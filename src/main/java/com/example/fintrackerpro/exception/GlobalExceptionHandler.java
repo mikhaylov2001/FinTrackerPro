@@ -3,6 +3,7 @@ package com.example.fintrackerpro.exception;
 import com.example.fintrackerpro.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -15,6 +16,7 @@ import org.springframework.web.reactive.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -118,6 +120,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
 
@@ -132,34 +135,70 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(nrf.getStatusCode()).body(error);
         }
 
-        log.error("❌ Unexpected error", ex);
+        log.error("❌ Unexpected error", ex); // тут полный текст и стек
+
         ErrorResponse error = ErrorResponse.builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("Internal server error: " + ex.getMessage())
+                .message("Внутренняя ошибка сервера. Попробуйте позже.")
                 .timestamp(LocalDateTime.now())
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
+
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatusException(
             ResponseStatusException ex,
             WebRequest request
     ) {
+        log.error("❌ ResponseStatusException", ex);
+
         ErrorResponse error = ErrorResponse.builder()
                 .status(ex.getStatusCode().value())
-                .message(ex.getReason() != null ? ex.getReason() : ex.getMessage())
+                .message(ex.getReason() != null
+                        ? ex.getReason()
+                        : "Ошибка обработки запроса.")
                 .timestamp(LocalDateTime.now())
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 
         return ResponseEntity.status(ex.getStatusCode()).body(error);
     }
+
+
     @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public Map<String, Object> handleIllegalArgument(IllegalArgumentException e, HttpServletRequest req) {
-        return Map.of("status", 409, "message", e.getMessage(), "path", req.getRequestURI());
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException e,
+            HttpServletRequest req
+    ) {
+        log.error("❌ Illegal argument", e);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(e.getMessage()) // тут можно оставить, это бизнес‑валидация
+                .timestamp(LocalDateTime.now())
+                .path(req.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    @ExceptionHandler({SQLException.class, DataAccessException.class})
+    public ResponseEntity<ErrorResponse> handleDatabaseExceptions(
+            Exception ex,
+            WebRequest request
+    ) {
+        log.error("❌ Database error", ex); // полный стек только в логи
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("Ошибка сервера при работе с базой данных. Попробуйте позже.")
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
 
 }
