@@ -1,14 +1,10 @@
 package com.example.fintrackerpro.controller;
 
-import com.example.fintrackerpro.dto.AuthRequest;
-import com.example.fintrackerpro.dto.GoogleTokenRequest;
+import com.example.fintrackerpro.dto.*;
 import com.example.fintrackerpro.entity.user.User;
 import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.repository.UserRepository;
-import com.example.fintrackerpro.service.AuthTokenIssuer;
-import com.example.fintrackerpro.service.MetricsService;
-import com.example.fintrackerpro.service.RefreshTokenService;
-import com.example.fintrackerpro.service.UserService;
+import com.example.fintrackerpro.service.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -42,7 +38,9 @@ public class AuthController {
     private final UserRepository userRepository;
     private final GoogleIdTokenVerifier verifier;
     private final MetricsService metricsService;
-
+    private final PasswordResetService passwordResetService;
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
     public AuthController(
             UserService userService,
             PasswordEncoder passwordEncoder,
@@ -50,6 +48,7 @@ public class AuthController {
             AuthTokenIssuer authTokenIssuer,
             UserRepository userRepository,
             MetricsService metricsService,
+            PasswordResetService passwordResetService,
             @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
     ) {
         this.userService = userService;
@@ -58,7 +57,7 @@ public class AuthController {
         this.authTokenIssuer = authTokenIssuer;
         this.userRepository = userRepository;
         this.metricsService = metricsService;
-
+        this.passwordResetService = passwordResetService;
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance()
@@ -200,5 +199,25 @@ public class AuthController {
                 .maxAge(0) // Удаляет куку немедленно
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        passwordResetService.initiatePasswordReset(request.getEmail(), frontendUrl);
+
+        // Всегда одинаковый ответ
+        return ResponseEntity.ok(
+                new MessageResponse("Если email зарегистрирован, мы отправили письмо с инструкциями")
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(new MessageResponse("Пароль успешно изменён"));
     }
 }
