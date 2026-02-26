@@ -201,19 +201,18 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    @PostMapping("/forgot-password")
+    @PostMapping("/password-reset/request")
     public ResponseEntity<MessageResponse> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request
     ) {
         passwordResetServiceBase.initiatePasswordReset(request.getEmail(), frontendUrl);
-
-        // Всегда одинаковый ответ
         return ResponseEntity.ok(
                 new MessageResponse("Если email зарегистрирован, мы отправили письмо с инструкциями")
         );
     }
 
-    @PostMapping("/reset-password")
+    // запрос на сохранение нового пароля
+    @PostMapping("/password-reset/confirm")
     public ResponseEntity<MessageResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request
     ) {
