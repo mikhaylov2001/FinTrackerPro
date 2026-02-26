@@ -22,7 +22,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Profile("dev")
 public class PasswordResetService implements PasswordResetServiceBase {
 
     private final UserRepository userRepository;
