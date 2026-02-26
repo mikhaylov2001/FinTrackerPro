@@ -38,7 +38,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final GoogleIdTokenVerifier verifier;
     private final MetricsService metricsService;
-    private final PasswordResetService passwordResetService;
+    private final PasswordResetServiceBase passwordResetServiceBase;
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
     public AuthController(
@@ -48,7 +48,7 @@ public class AuthController {
             AuthTokenIssuer authTokenIssuer,
             UserRepository userRepository,
             MetricsService metricsService,
-            PasswordResetService passwordResetService,
+            PasswordResetServiceBase passwordResetServiceBase,
             @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
     ) {
         this.userService = userService;
@@ -57,7 +57,7 @@ public class AuthController {
         this.authTokenIssuer = authTokenIssuer;
         this.userRepository = userRepository;
         this.metricsService = metricsService;
-        this.passwordResetService = passwordResetService;
+        this.passwordResetServiceBase = passwordResetServiceBase;
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance()
