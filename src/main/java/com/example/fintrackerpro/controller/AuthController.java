@@ -205,7 +205,7 @@ public class AuthController {
     public ResponseEntity<MessageResponse> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request
     ) {
-        passwordResetService.initiatePasswordReset(request.getEmail(), frontendUrl);
+        passwordResetServiceBase.initiatePasswordReset(request.getEmail(), frontendUrl);
 
         // Всегда одинаковый ответ
         return ResponseEntity.ok(
@@ -217,7 +217,7 @@ public class AuthController {
     public ResponseEntity<MessageResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request
     ) {
-        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        passwordResetServiceBase.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(new MessageResponse("Пароль успешно изменён"));
     }
 }
