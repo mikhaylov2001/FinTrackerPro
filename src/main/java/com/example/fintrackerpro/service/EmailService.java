@@ -18,31 +18,22 @@ public class EmailService {
     }
 
     public void sendPasswordResetEmail(String to, String username, String resetLink) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(to);
-            message.setSubject("Восстановление пароля — FinTracker");
-            message.setText(buildResetEmailText(username, resetLink));
-            message.setFrom("noreply@fintracker.com"); // замени на свой
+        String body = buildResetEmailText(username, resetLink);
 
-            mailSender.send(message);
-            log.info("Password reset email sent to: {}", to);
-        } catch (Exception e) {
-            log.error("Failed to send password reset email to: {}", to, e);
-            throw new RuntimeException("Не удалось отправить письмо");
-        }
+        log.info("FAKE PASSWORD RESET EMAIL to={}", to);
+        log.info("FAKE PASSWORD RESET EMAIL BODY:\n{}", body);
     }
 
     private String buildResetEmailText(String username, String resetLink) {
         return String.format(
-            "Здравствуйте, %s!\n\n" +
-            "Вы запросили восстановление пароля для своего аккаунта в FinTracker.\n\n" +
-            "Для сброса пароля перейдите по ссылке:\n%s\n\n" +
-            "Ссылка действительна в течение 60 минут.\n\n" +
-            "Если это были не вы, просто проигнорируйте это письмо — ваш пароль останется без изменений.\n\n" +
-            "С уважением,\nКоманда FinTracker",
-            username,
-            resetLink
+                "Здравствуйте, %s!\n\n" +
+                        "Вы запросили восстановление пароля для своего аккаунта в FinTracker.\n\n" +
+                        "Для сброса пароля перейдите по ссылке:\n%s\n\n" +
+                        "Ссылка действительна в течение 60 минут.\n\n" +
+                        "Если это были не вы, просто проигнорируйте это письмо — ваш пароль останется без изменений.\n\n" +
+                        "С уважением,\nКоманда FinTracker",
+                username,
+                resetLink
         );
     }
 
