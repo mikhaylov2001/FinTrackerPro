@@ -50,7 +50,7 @@ server:
 
 jwt:
   secret-base64: ${JWT_SECRET_BASE64:}
-  access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+  access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:2592000000}
   refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   issuer: ${JWT_ISSUER:fintracker}
   audience: ${JWT_AUDIENCE:fintracker-frontend}
