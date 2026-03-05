@@ -46,7 +46,7 @@ spring:
     baseline-version: 0
 
 server:
-  port: ${PORT:8082}
+  port: ${PORT:8080}
 
 jwt:
   secret-base64: ${JWT_SECRET_BASE64:}
