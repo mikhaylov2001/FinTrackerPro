@@ -1,30 +1,30 @@
-# 💰 FinTrackerPro
+# 💰 FinTrackerPro (Backend)
 
-Веб-приложение для управления личными финансами с REST API, Telegram-ботом(но еще не готов) и Google OAuth авторизацией.
+Backend для веб‑приложения учёта личных финансов: REST API + аутентификация (JWT и Google OAuth) + документация Swagger/OpenAPI.
 
----
+## Ссылки
+- Demo (web app): https://fintrackerpro.vercel.app
+- Backend repo: https://github.com/mikhaylov2001/FinTrackerPro
+- Frontend repo: https://github.com/mikhaylov2001/fintracker-frontend
 
-## 🛠️ Технологии
+## Возможности
+- Регистрация/логин и JWT‑аутентификация
+- Вход через Google OAuth
+- Документация API через Swagger/OpenAPI
+- TODO: добавь 3–5 реальных фич (доходы/расходы, категории, аналитика по периодам, бюджеты/цели — что у тебя готово)
 
+## Технологии
 - Java 17
 - Spring Boot 3.2.0
 - PostgreSQL 14.19
 - JWT + Google OAuth
-- Telegram Bot API
 - Swagger/OpenAPI
+- Docker / docker-compose (для локального запуска)
 
----
+## Быстрый старт
 
-## 🚀 Быстрый старт
-
-### 1. Требования
-- Java 17+
-- PostgreSQL 14+
-- Maven 3.9+
-
-### 2. Настройка базы данных
-
+### Docker Compose (рекомендуется)
+1) Клонировать:
 ```bash
-psql -U postgres
-CREATE DATABASE project;
-\q
+git clone https://github.com/mikhaylov2001/FinTrackerPro.git
+cd FinTrackerPro
