@@ -1,30 +1,29 @@
-# 💰 FinTrackerPro (Backend)
+# FinTrackerPro
 
-Backend для веб‑приложения учёта личных финансов: REST API + аутентификация (JWT и Google OAuth) + документация Swagger/OpenAPI.
+Финансовый трекер для учёта доходов и расходов: категории, бюджеты, отчёты и управление пользователями.
 
-## Ссылки
-- Demo (web app): https://fintrackerpro.vercel.app
-- Backend repo: https://github.com/mikhaylov2001/FinTrackerPro
-- Frontend repo: https://github.com/mikhaylov2001/fintracker-frontend
+## Стек технологий
 
-## Возможности
-- Регистрация/логин и JWT‑аутентификация
-- Вход через Google OAuth
-- Документация API через Swagger/OpenAPI
-- TODO: добавь 3–5 реальных фич (доходы/расходы, категории, аналитика по периодам, бюджеты/цели — что у тебя готово)
-
-## Технологии
 - Java 17
-- Spring Boot 3.2.0
-- PostgreSQL 14.19
-- JWT + Google OAuth
-- Swagger/OpenAPI
-- Docker / docker-compose (для локального запуска)
+- Spring Boot 3
+- PostgreSQL 14
+- Maven
+- Spring Security (JWT, Google OAuth2)
+- Flyway (миграции БД)
+- Docker / Docker Compose (опционально)
+
+## Требования
+
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
+- Git
+- (опционально) Docker и Docker Compose
 
 ## Быстрый старт
 
-### Docker Compose (рекомендуется)
-1) Клонировать:
 ```bash
 git clone https://github.com/mikhaylov2001/FinTrackerPro.git
 cd FinTrackerPro
+cp .env .env
+mvn spring-boot:run
