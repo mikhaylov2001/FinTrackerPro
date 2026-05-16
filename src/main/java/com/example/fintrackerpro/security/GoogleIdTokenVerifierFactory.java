@@ -66,11 +66,30 @@ public class GoogleIdTokenVerifierFactory {
         if (StringUtils.hasText(extra)) {
             raw.addAll(Arrays.asList(extra.split(",")));
         }
-        return raw.stream()
+        List<String> valid = raw.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
+                .filter(GoogleIdTokenVerifierFactory::isValidGoogleClientId)
                 .distinct()
                 .collect(Collectors.toList());
+
+        long rejected = raw.stream().filter(StringUtils::hasText).count() - valid.size();
+        if (rejected > 0) {
+            log.error(
+                    "Ignored invalid GOOGLE_CLIENT_ID value(s). On Render set the real client id " +
+                            "from Google Cloud (…apps.googleusercontent.com), not the placeholder text GOOGLE_CLIENT_ID"
+            );
+        }
+        return valid;
+    }
+
+    /** Отсекает пустые значения и типичную ошибку: в Render вписали имя переменной вместо значения. */
+    static boolean isValidGoogleClientId(String id) {
+        if (!StringUtils.hasText(id)) return false;
+        String s = id.trim();
+        if ("GOOGLE_CLIENT_ID".equalsIgnoreCase(s)) return false;
+        if (s.startsWith("${") && s.endsWith("}")) return false;
+        return s.endsWith(".apps.googleusercontent.com") && s.length() > 30;
     }
 
     private static String tail(String clientId) {

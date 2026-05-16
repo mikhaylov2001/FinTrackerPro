@@ -146,7 +146,9 @@ public class AuthController {
                 );
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                         "error", "INVALID_GOOGLE_TOKEN",
-                        "message", "Invalid Google token (client id mismatch or expired)"
+                        "message",
+                        "Invalid Google token. On Render, GOOGLE_CLIENT_ID must be the real " +
+                                "…apps.googleusercontent.com value (same as on Vercel), not the text GOOGLE_CLIENT_ID"
                 ));
             }
 
