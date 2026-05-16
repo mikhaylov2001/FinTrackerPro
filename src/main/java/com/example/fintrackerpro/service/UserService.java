@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
@@ -108,7 +109,8 @@ public class UserService {
         user.setEmail(email);
         user.setUserName(name != null ? name : email.split("@")[0]);
         user.setGoogleId(googleId);
-        user.setPassword("");
+        // Случайный хеш — вход только через Google, не пустая строка в БД
+        user.setPassword(passwordEncoder.encode("google-oauth:" + UUID.randomUUID()));
 
         User savedUser = userRepository.save(user);
         log.info("✅ User saved: id={}, userName={}", savedUser.getId(), savedUser.getUserName());

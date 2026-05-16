@@ -15,8 +15,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -108,13 +110,20 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request, HttpServletResponse response) {
         try {
-            if (request == null || request.getIdToken() == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Google token is required"));
+            if (request == null || !StringUtils.hasText(request.getIdToken())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "GOOGLE_TOKEN_REQUIRED",
+                        "message", "Google token is required"
+                ));
             }
 
             GoogleIdToken token = verifier.verify(request.getIdToken());
             if (token == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid Google token"));
+                log.warn("Google token verification failed (invalid audience, expiry, or client id)");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "error", "INVALID_GOOGLE_TOKEN",
+                        "message", "Invalid Google token"
+                ));
             }
 
             GoogleIdToken.Payload payload = token.getPayload();
@@ -122,11 +131,29 @@ public class AuthController {
             String googleId = payload.getSubject();
             String name = (String) payload.get("name");
 
+            if (!StringUtils.hasText(email) || !StringUtils.hasText(googleId)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                        "error", "GOOGLE_PROFILE_INCOMPLETE",
+                        "message", "Google profile does not contain email"
+                ));
+            }
+
+            Optional<User> byGoogleId = userRepository.findByGoogleId(googleId);
+            if (byGoogleId.isPresent()) {
+                return authTokenIssuer.issueTokens(byGoogleId.get(), response, HttpStatus.OK);
+            }
+
             Optional<User> byEmail = userRepository.findByEmail(email);
             User user;
 
             if (byEmail.isPresent()) {
                 user = byEmail.get();
+                if (user.getGoogleId() != null && !googleId.equals(user.getGoogleId())) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                            "error", "GOOGLE_ACCOUNT_CONFLICT",
+                            "message", "This email is linked to another Google account"
+                    ));
+                }
                 if (user.getGoogleId() == null) {
                     user.setGoogleId(googleId);
                     userRepository.save(user);
@@ -135,10 +162,26 @@ public class AuthController {
                 user = userService.registerUserViaGoogle(email, googleId, name);
             }
 
+            metricsService.incLoginSuccess();
             return authTokenIssuer.issueTokens(user, response, HttpStatus.OK);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Google Auth DB constraint", e);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "GOOGLE_ACCOUNT_CONFLICT",
+                    "message", "Google account is linked to another user"
+            ));
+        } catch (IllegalArgumentException e) {
+            log.warn("Google Auth business error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "GOOGLE_REGISTRATION_FAILED",
+                    "message", e.getMessage()
+            ));
         } catch (Exception e) {
             log.error("Google Auth Error", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Auth failed"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "error", "GOOGLE_AUTH_FAILED",
+                    "message", "Google sign-in failed. Try again later"
+            ));
         }
     }
 
