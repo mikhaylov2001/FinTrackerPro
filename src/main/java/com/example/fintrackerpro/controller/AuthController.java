@@ -6,9 +6,8 @@ import com.example.fintrackerpro.entity.user.UserRegistrationRequest;
 import com.example.fintrackerpro.repository.UserRepository;
 import com.example.fintrackerpro.service.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.example.fintrackerpro.security.GoogleIdTokenVerifierFactory;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,8 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,7 +37,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final AuthTokenIssuer authTokenIssuer;
     private final UserRepository userRepository;
-    private final GoogleIdTokenVerifier verifier;
+    private final GoogleIdTokenVerifierFactory googleVerifierFactory;
     private final MetricsService metricsService;
     private final PasswordResetServiceBase passwordResetServiceBase;
     @Value("${app.frontend.url:http://localhost:3000}")
@@ -51,7 +50,7 @@ public class AuthController {
             UserRepository userRepository,
             MetricsService metricsService,
             PasswordResetServiceBase passwordResetServiceBase,
-            @Value("${spring.security.oauth2.client.registration.google.client-id}") String googleClientId
+            GoogleIdTokenVerifierFactory googleVerifierFactory
     ) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
@@ -60,12 +59,15 @@ public class AuthController {
         this.userRepository = userRepository;
         this.metricsService = metricsService;
         this.passwordResetServiceBase = passwordResetServiceBase;
-        this.verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(),
-                GsonFactory.getDefaultInstance()
-        )
-                .setAudience(Collections.singletonList(googleClientId))
-                .build();
+        this.googleVerifierFactory = googleVerifierFactory;
+    }
+
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, Object>> authConfig() {
+        return ResponseEntity.ok(Map.of(
+                "googleOAuthConfigured", googleVerifierFactory.isConfigured(),
+                "googleAudienceSuffixes", googleVerifierFactory.audienceSuffixes()
+        ));
     }
 
     @PostMapping("/register")
@@ -110,6 +112,14 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<?> googleAuth(@RequestBody GoogleTokenRequest request, HttpServletResponse response) {
         try {
+            if (!googleVerifierFactory.isConfigured()) {
+                log.error("Google sign-in rejected: GOOGLE_CLIENT_ID is not set on the server");
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                        "error", "GOOGLE_NOT_CONFIGURED",
+                        "message", "Google OAuth is not configured on the server (set GOOGLE_CLIENT_ID)"
+                ));
+            }
+
             if (request == null || !StringUtils.hasText(request.getIdToken())) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "GOOGLE_TOKEN_REQUIRED",
@@ -117,12 +127,26 @@ public class AuthController {
                 ));
             }
 
-            GoogleIdToken token = verifier.verify(request.getIdToken());
-            if (token == null) {
-                log.warn("Google token verification failed (invalid audience, expiry, or client id)");
+            GoogleIdTokenVerifier verifier = googleVerifierFactory.verifier();
+            GoogleIdToken token;
+            try {
+                token = verifier.verify(request.getIdToken());
+            } catch (IOException | IllegalArgumentException e) {
+                log.warn("Google token parse/verify error: {}", e.getMessage());
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                         "error", "INVALID_GOOGLE_TOKEN",
                         "message", "Invalid Google token"
+                ));
+            }
+
+            if (token == null) {
+                log.warn(
+                        "Google token verification failed. Server audiences end with: {}",
+                        googleVerifierFactory.audienceSuffixes()
+                );
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "error", "INVALID_GOOGLE_TOKEN",
+                        "message", "Invalid Google token (client id mismatch or expired)"
                 ));
             }
 
