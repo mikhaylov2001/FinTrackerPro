@@ -30,6 +30,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final MetricsService metricsService;
+    private final CategoryService categoryService;
 
     // РЕГИСТРАЦИЯ: firstName + lastName + email + password
     public User registerUser(UserRegistrationRequest request) {
@@ -51,6 +52,7 @@ public class UserService {
 
 
         User save = userRepository.save(user);
+        categoryService.seedDefaultsForUser(save.getId());
         metricsService.incRegistration();
         log.info("👤 New user registered: {}", save.getEmail());
         return save;
@@ -113,6 +115,7 @@ public class UserService {
         user.setPassword(passwordEncoder.encode("google-oauth:" + UUID.randomUUID()));
 
         User savedUser = userRepository.save(user);
+        categoryService.seedDefaultsForUser(savedUser.getId());
         log.info("✅ User saved: id={}, userName={}", savedUser.getId(), savedUser.getUserName());
         metricsService.incRegistration();
         return savedUser;

@@ -23,6 +23,8 @@ class UserServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock MetricsService metricsService;
+    @Mock CategoryService categoryService;
 
     @InjectMocks UserService userService;
 
@@ -64,7 +66,8 @@ class UserServiceTest {
         verify(userRepository).findByEmail("test@example.com");
         verify(passwordEncoder).encode("password123");
         verify(userRepository).save(any(User.class));
-        verifyNoMoreInteractions(userRepository, passwordEncoder);
+        verify(categoryService).seedDefaultsForUser(1L);
+        verifyNoMoreInteractions(userRepository, passwordEncoder, categoryService);
     }
 
     @Test
