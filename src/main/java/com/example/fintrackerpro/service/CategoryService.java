@@ -43,6 +43,7 @@ public class CategoryService {
     private static final List<String> DEFAULT_EXPENSE = List.of(
             "Продукты",
             "Коммунальные услуги",
+            "Аренда",
             "Транспорт",
             "Фитнес",
             "Здоровье",
