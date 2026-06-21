@@ -29,12 +29,12 @@ public class CategoryService {
 
     private static final List<String> DEFAULT_INCOME = List.of(
             "Работа",
-            "Вклады",
-            "Рента",
+            "Подработка",
             "Бизнес",
+            "Аренда недвижимости",
             "Инвестиции",
             "Пассивный доход",
-            "Подработка",
+            "Вклады",
             "Продажа вещей",
             "Подарки",
             "Другое"
@@ -43,10 +43,10 @@ public class CategoryService {
     private static final List<String> DEFAULT_EXPENSE = List.of(
             "Продукты",
             "Коммунальные услуги",
-            "Подписка на ИИ",
+            "Транспорт",
             "Фитнес",
             "Здоровье",
-            "Транспорт",
+            "Подписка на ИИ",
             "Образование",
             "Ипотека",
             "Кредит",
@@ -145,7 +145,7 @@ public class CategoryService {
         Set<String> used = new HashSet<>();
 
         for (String name : defaultOrder) {
-            Category category = byLowerName.get(name.toLowerCase(Locale.ROOT));
+            Category category = findCategoryForDefault(byLowerName, name, type);
             if (category != null) {
                 result.add(CategoryResponse.from(category));
                 used.add(category.getName().toLowerCase(Locale.ROOT));
@@ -159,5 +159,16 @@ public class CategoryService {
                 .forEach(result::add);
 
         return result;
+    }
+
+    private Category findCategoryForDefault(Map<String, Category> byLowerName, String name, CategoryType type) {
+        Category category = byLowerName.get(name.toLowerCase(Locale.ROOT));
+        if (category != null) {
+            return category;
+        }
+        if (type == CategoryType.INCOME && "аренда недвижимости".equals(name.toLowerCase(Locale.ROOT))) {
+            return byLowerName.get("рента");
+        }
+        return null;
     }
 }
