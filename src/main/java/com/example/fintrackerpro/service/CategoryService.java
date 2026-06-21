@@ -31,7 +31,7 @@ public class CategoryService {
             "Работа",
             "Подработка",
             "Бизнес",
-            "Аренда недвижимости",
+            "Рента",
             "Инвестиции",
             "Пассивный доход",
             "Вклады",
@@ -166,8 +166,8 @@ public class CategoryService {
         if (category != null) {
             return category;
         }
-        if (type == CategoryType.INCOME && "аренда недвижимости".equals(name.toLowerCase(Locale.ROOT))) {
-            return byLowerName.get("рента");
+        if (type == CategoryType.INCOME && "рента".equals(name.toLowerCase(Locale.ROOT))) {
+            return byLowerName.get("аренда недвижимости");
         }
         return null;
     }
