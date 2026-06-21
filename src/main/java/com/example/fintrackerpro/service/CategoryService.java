@@ -14,7 +14,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,9 +64,8 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public List<CategoryResponse> getCategories(Long userId, CategoryType type) {
         ensureDefaults(userId, type);
-        return categoryRepository.findByUserIdAndTypeOrderByNameAsc(userId, type).stream()
-                .map(CategoryResponse::from)
-                .toList();
+        List<Category> categories = categoryRepository.findByUserIdAndTypeOrderByNameAsc(userId, type);
+        return sortInDefaultOrder(categories, type);
     }
 
     @Transactional
@@ -124,5 +130,34 @@ public class CategoryService {
             return "";
         }
         return raw.trim().replaceAll("\\s+", " ");
+    }
+
+    private List<CategoryResponse> sortInDefaultOrder(List<Category> categories, CategoryType type) {
+        List<String> defaultOrder = type == CategoryType.INCOME ? DEFAULT_INCOME : DEFAULT_EXPENSE;
+        Map<String, Category> byLowerName = categories.stream()
+                .collect(Collectors.toMap(
+                        c -> c.getName().toLowerCase(Locale.ROOT),
+                        c -> c,
+                        (a, b) -> a
+                ));
+
+        List<CategoryResponse> result = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+
+        for (String name : defaultOrder) {
+            Category category = byLowerName.get(name.toLowerCase(Locale.ROOT));
+            if (category != null) {
+                result.add(CategoryResponse.from(category));
+                used.add(category.getName().toLowerCase(Locale.ROOT));
+            }
+        }
+
+        categories.stream()
+                .filter(c -> !used.contains(c.getName().toLowerCase(Locale.ROOT)))
+                .sorted(Comparator.comparing(Category::getCreatedAt))
+                .map(CategoryResponse::from)
+                .forEach(result::add);
+
+        return result;
     }
 }
