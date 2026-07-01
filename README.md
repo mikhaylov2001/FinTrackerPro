@@ -20,17 +20,28 @@
 - Git
 - (опционально) Docker и Docker Compose
 
-## Деплой на Render (Google OAuth)
+## Деплой на Render
 
 В **Environment** сервиса на Render обязательно задайте:
 
 | Переменная | Значение |
 |------------|----------|
+| `PGHOST` | хост Neon (например `ep-….neon.tech`) |
+| `PGPORT` | `5432` |
+| `PGDATABASE` | `neondb` |
+| `PGUSER` | `neondb_owner` |
+| `PGPASSWORD` | пароль из Neon |
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `JWT_SECRET_BASE64` | секрет JWT (base64) |
+| `JWT_ISSUER` | `https://fintrackerpro1.onrender.com` |
+| `JWT_AUDIENCE` | `https://fintrackerpro.vercel.app` |
 | `GOOGLE_CLIENT_ID` | тот же ID, что `REACT_APP_GOOGLE_CLIENT_ID` на Vercel |
 | `GOOGLE_CLIENT_SECRET` | из Google Cloud Console |
 | `FRONTEND_URL` | `https://fintrackerpro.vercel.app` |
 
-Проверка после деплоя: `GET https://<ваш-бэк>/api/auth/config` → `"googleOAuthConfigured": true`.
+Проверка после деплоя:
+- `GET https://fintrackerpro1.onrender.com/actuator/health` → `{"status":"UP"}`
+- `GET https://fintrackerpro1.onrender.com/api/auth/config` → `"googleOAuthConfigured": true`
 
 На **Vercel** для фронта: `REACT_APP_API_BASE_URL` **оставьте пустым** (запросы идут на `/api` через прокси в `vercel.json`).
 

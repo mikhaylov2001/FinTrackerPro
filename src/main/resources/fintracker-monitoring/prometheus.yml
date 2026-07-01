@@ -6,7 +6,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     scheme: https
     static_configs:
-      - targets: ['fintrackerpro-production.up.railway.app']
+      - targets: ['fintrackerpro1.onrender.com']
         labels:
           service: 'fintracker-api'
           env: 'prod'
